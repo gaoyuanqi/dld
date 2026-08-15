@@ -14,15 +14,8 @@ $Repo = "gaoyuanqi/dld"
 $Gitee = "https://gitee.com"
 $Github = if ($Mirror) { "${Mirror}https://github.com" } else { "https://github.com" }
 
-# === 解析版本 ===
-# Gitee 不支持 latest 下载路由，用 API 解析最新版本号；解析失败保持 latest，仅走 GitHub
+# Gitee 与 GitHub 均支持 latest 下载路由（格式不同），无需解析版本号
 $version = $Version
-if ($version -eq "latest") {
-    try {
-        $latest = Invoke-RestMethod -Uri "${Gitee}/api/v5/repos/${Repo}/releases?per_page=1" -TimeoutSec 15
-        if ($latest.tag_name) { $version = $latest.tag_name }
-    } catch {}
-}
 
 # 检测架构
 if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
@@ -32,12 +25,15 @@ if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
 }
 $arch = "x86_64"
 
-# === 构造下载源（Gitee 优先，GitHub 回退） ===
+# === 构造下载源（Gitee 优先，GitHub 回退；latest 路由格式两者不同） ===
 $urls = @()
-if ($version -ne "latest") {
+if ($version -eq "latest") {
+    $urls += "${Gitee}/${Repo}/releases/download/latest/dld-windows-${arch}.exe"
+    $urls += "${Github}/${Repo}/releases/latest/download/dld-windows-${arch}.exe"
+} else {
     $urls += "${Gitee}/${Repo}/releases/download/${version}/dld-windows-${arch}.exe"
+    $urls += "${Github}/${Repo}/releases/download/${version}/dld-windows-${arch}.exe"
 }
-$urls += "${Github}/${Repo}/releases/download/${version}/dld-windows-${arch}.exe"
 
 $InstallDir = "$env:USERPROFILE\.local\bin"
 $ExePath = "$InstallDir\dld.exe"

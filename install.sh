@@ -40,25 +40,17 @@ case "${os}-${arch}" in
         ;;
 esac
 
-# === 解析版本 ===
-# Gitee 不支持 latest 下载路由，用 API 解析最新版本号；解析失败保持 latest，仅走 GitHub
-if [ "${VERSION}" = "latest" ]; then
-    latest_tag="$(curl -fsSL --connect-timeout 10 --max-time 30 \
-        "${GITEE}/api/v5/repos/${REPO}/releases?per_page=1" 2>/dev/null \
-        | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1 || true)"
-    if [ -n "${latest_tag}" ]; then
-        VERSION="${latest_tag}"
-    fi
-fi
-
 BINARY="dld-${os}-${arch}"
 
-# === 构造下载源（Gitee 优先，GitHub 回退） ===
+# === 构造下载源（Gitee 优先，GitHub 回退；latest 路由格式两者不同） ===
 download_urls=""
-if [ "${VERSION}" != "latest" ]; then
+if [ "${VERSION}" = "latest" ]; then
+    download_urls="${download_urls} ${GITEE}/${REPO}/releases/download/latest/${BINARY}"
+    download_urls="${download_urls} ${GITHUB}/${REPO}/releases/latest/download/${BINARY}"
+else
     download_urls="${download_urls} ${GITEE}/${REPO}/releases/download/${VERSION}/${BINARY}"
+    download_urls="${download_urls} ${GITHUB}/${REPO}/releases/download/${VERSION}/${BINARY}"
 fi
-download_urls="${download_urls} ${GITHUB}/${REPO}/releases/download/${VERSION}/${BINARY}"
 
 echo "平台: ${os} ${arch}"
 echo "版本: ${VERSION}"
@@ -71,6 +63,7 @@ tmpfile="${INSTALL_DIR}/.dld.tmp.$$"
 cleanup_tmp() { if [ -f "${tmpfile}" ]; then rm -f "${tmpfile}"; fi; }
 trap cleanup_tmp EXIT
 
+# === 检测下载器 ===
 if command -v curl > /dev/null 2>&1; then
     downloader="curl"
 elif command -v wget > /dev/null 2>&1; then
@@ -84,7 +77,7 @@ downloaded=false
 for url in ${download_urls}; do
     echo "下载: ${url}"
     if [ "${downloader}" = "curl" ]; then
-        curl -fsSL --retry 3 --retry-all-errors --connect-timeout 10 --max-time 120 -o "${tmpfile}" "${url}" && downloaded=true
+        curl -fsSL --retry 3 --connect-timeout 10 --max-time 120 -o "${tmpfile}" "${url}" && downloaded=true
     else
         wget -q --tries=3 --timeout=10 -O "${tmpfile}" "${url}" && downloaded=true
     fi
