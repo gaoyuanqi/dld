@@ -1,7 +1,7 @@
 [package]
 name = "dld"
 version = "0.1.0"
-description = "Q宠大乐斗代玩辅助"
+description = "Q宠大乐斗个人版代玩辅助"
 authors = ["雨园"]
 license = "MIT"
 edition = "2024"
