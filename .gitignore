@@ -1,0 +1,6 @@
+/target
+
+.codegraph/
+
+# 本地权限配置，不随仓库公开
+.claude/settings.local.json

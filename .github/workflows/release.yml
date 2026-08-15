@@ -1,0 +1,193 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Verify version
+        run: |
+          TAG_VERSION="${{ github.ref_name }}"
+          TOML_VERSION="v$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[] | select(.name == "dld") | .version')"
+          if [ "$TAG_VERSION" != "$TOML_VERSION" ]; then
+            echo "错误：tag $TAG_VERSION 与 Cargo.toml $TOML_VERSION 不一致"
+            exit 1
+          fi
+
+  build:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: dld
+            artifact: dld-linux-x86_64
+          - os: ubuntu-26.04-arm
+            target: aarch64-unknown-linux-gnu
+            bin: dld
+            artifact: dld-linux-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: dld.exe
+            artifact: dld-windows-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            bin: dld
+            artifact: dld-macos-arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bin: dld
+            artifact: dld-macos-x86_64
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/${{ matrix.target }}/release/${{ matrix.bin }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+
+      - name: Prepare artifacts
+        run: |
+          # 重命名为唯一文件名，避免 asset name 冲突
+          cp dld-linux-x86_64/dld dld-linux-x86_64/dld-linux-x86_64
+          cp dld-linux-arm64/dld dld-linux-arm64/dld-linux-arm64
+          cp dld-windows-x86_64/dld.exe dld-windows-x86_64/dld-windows-x86_64.exe
+          cp dld-macos-arm64/dld dld-macos-arm64/dld-macos-arm64
+          cp dld-macos-x86_64/dld dld-macos-x86_64/dld-macos-x86_64
+          chmod +x dld-linux-x86_64/dld-linux-x86_64 dld-linux-arm64/dld-linux-arm64 dld-macos-arm64/dld-macos-arm64 dld-macos-x86_64/dld-macos-x86_64
+          ls -lh dld-*/dld*
+
+      - name: 创建 Release 并上传
+        run: |
+          # 删除可能存在的旧 release（重试场景），保留 git tag
+          gh release delete "$GITHUB_REF_NAME" --yes 2>/dev/null || true
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            dld-linux-x86_64/dld-linux-x86_64 \
+            dld-linux-arm64/dld-linux-arm64 \
+            dld-windows-x86_64/dld-windows-x86_64.exe \
+            dld-macos-arm64/dld-macos-arm64 \
+            dld-macos-x86_64/dld-macos-x86_64
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  gitee-sync:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Push 代码到 Gitee 镜像
+        run: |
+          # tag push 触发的 checkout 处于 detached HEAD，本地无 main 分支引用，先从远程引用建本地分支
+          git branch main origin/main
+          git push --force "https://oauth2:${GITEE_TOKEN}@gitee.com/gaoyuanqi/dld.git" \
+            "refs/heads/main:refs/heads/main" \
+            "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+
+      - name: 删除已存在的同 tag Release（重试场景）
+        run: |
+          # 查询/删除失败仅提示不阻塞（Gitee API 偶发抖动，本步骤为 best-effort 清理）
+          EXISTING=$(curl -fsSL "https://gitee.com/api/v5/repos/gaoyuanqi/dld/releases?per_page=20" 2>/dev/null | jq -r ".[] | select(.tag_name == \"${GITHUB_REF_NAME}\") | .id" 2>/dev/null | head -1)
+          if [ -n "${EXISTING}" ]; then
+            curl -fsSL -X DELETE "https://gitee.com/api/v5/repos/gaoyuanqi/dld/releases/${EXISTING}?access_token=${GITEE_TOKEN}" 2>/dev/null || echo "删除旧 Release 失败，继续"
+          fi
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+
+      - name: Prepare attachments
+        run: |
+          # 重命名为唯一文件名，与 GitHub Release 资产名一致
+          cp dld-linux-x86_64/dld dld-linux-x86_64/dld-linux-x86_64
+          cp dld-linux-arm64/dld dld-linux-arm64/dld-linux-arm64
+          cp dld-windows-x86_64/dld.exe dld-windows-x86_64/dld-windows-x86_64.exe
+          cp dld-macos-arm64/dld dld-macos-arm64/dld-macos-arm64
+          cp dld-macos-x86_64/dld dld-macos-x86_64/dld-macos-x86_64
+
+      - name: 创建 Gitee Release
+        id: create-release
+        run: |
+          RESP=$(curl -fsSL -X POST "https://gitee.com/api/v5/repos/gaoyuanqi/dld/releases" \
+            -H "Content-Type: application/json" \
+            -d "{\"access_token\":\"${GITEE_TOKEN}\",\"tag_name\":\"${GITHUB_REF_NAME}\",\"name\":\"${GITHUB_REF_NAME}\",\"body\":\"Q宠大乐斗代玩辅助 ${GITHUB_REF_NAME}\",\"target_commitish\":\"main\"}")
+          echo "创建响应: ${RESP}"
+          RELEASE_ID=$(echo "${RESP}" | jq -r '.id // empty')
+          if [ -z "${RELEASE_ID}" ]; then
+            echo "错误：Gitee Release 创建失败，响应中无 id，跳过上传"
+            exit 1
+          fi
+          echo "release_id=${RELEASE_ID}" >> "$GITHUB_OUTPUT"
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+
+      - name: 上传附件到 Gitee Release
+        run: |
+          # 并行上传缩短跨境耗时，全部完成前任一个失败则整体失败
+          pids=""
+          for f in \
+            dld-linux-x86_64/dld-linux-x86_64 \
+            dld-linux-arm64/dld-linux-arm64 \
+            dld-windows-x86_64/dld-windows-x86_64.exe \
+            dld-macos-arm64/dld-macos-arm64 \
+            dld-macos-x86_64/dld-macos-x86_64; do
+            echo "上传: ${f}"
+            curl -fsSL -X POST "https://gitee.com/api/v5/repos/gaoyuanqi/dld/releases/${{ steps.create-release.outputs.release_id }}/attach_files" \
+              -F "access_token=${GITEE_TOKEN}" \
+              -F "file=@${f}" &
+            pids="${pids} $!"
+          done
+          for pid in ${pids}; do
+            wait "${pid}" || { echo "上传失败 (pid ${pid})"; exit 1; }
+          done
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}

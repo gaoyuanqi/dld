@@ -1,0 +1,23 @@
+name: Gitee Mirror
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Push 代码到 Gitee 镜像
+        run: |
+          git push "https://oauth2:${GITEE_TOKEN}@gitee.com/gaoyuanqi/dld.git" \
+            "refs/heads/main:refs/heads/main"
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
