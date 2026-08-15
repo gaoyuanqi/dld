@@ -68,7 +68,7 @@ mkdir -p "${INSTALL_DIR}"
 
 # === 下载（临时文件 + 多源回退 + 空文件校验） ===
 tmpfile="${INSTALL_DIR}/.dld.tmp.$$"
-cleanup_tmp() { [ -f "${tmpfile}" ] && rm -f "${tmpfile}"; }
+cleanup_tmp() { if [ -f "${tmpfile}" ]; then rm -f "${tmpfile}"; fi; }
 trap cleanup_tmp EXIT
 
 if command -v curl > /dev/null 2>&1; then
