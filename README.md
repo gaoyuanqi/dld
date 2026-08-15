@@ -21,7 +21,7 @@
 **Linux / macOS**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gaoyuanqi/dld/main/install.sh | sh
+curl -fsSL https://gitee.com/gaoyuanqi/dld/raw/main/install.sh | sh
 ```
 
 **Windows**
@@ -35,7 +35,7 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 然后在 PowerShell 中执行：
 
 ```powershell
-irm https://raw.githubusercontent.com/gaoyuanqi/dld/main/install.ps1 | iex
+irm https://gitee.com/gaoyuanqi/dld/raw/main/install.ps1 | iex
 ```
 
 ### 方式二：cargo install
