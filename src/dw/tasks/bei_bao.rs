@@ -1,6 +1,6 @@
 //! 背包任务
 //!
-//! 使用锦囊类物品，开启名称以「箱」「盒」结尾的物品
+//! 使用锦囊类物品，开启名称以「宝箱」「食盒」结尾的物品
 
 use serde::Deserialize;
 
@@ -32,7 +32,7 @@ async fn 箱盒(d: &DaLeDou) {
     };
 
     for item in &data.bag {
-        if item.name.ends_with("箱") || item.name.ends_with("盒") {
+        if item.name.ends_with("宝箱") || item.name.ends_with("食盒") {
             使用(d, item).await;
         }
     }

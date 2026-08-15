@@ -134,7 +134,7 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
-    /// 使用锦囊类、以箱、盒结尾的物品
+    /// 使用锦囊类、以宝箱、食盒结尾的物品
     背包 {
         #[command(flatten)]
         qq: QqArg,
