@@ -52,6 +52,14 @@ Q宠大乐斗个人版代玩辅助
 - 失败时显示 QQ 和错误原因，便于定位
 - 任务完成后自动清理过期日志（按 `日志保留天数`）
 
+## Gitee 镜像
+
+- `gitee-mirror.yml`：push main 自动同步代码到 Gitee 镜像
+- `release.yml` 的 gitee-sync job：发版自动同步 Release + 5 平台附件（并行上传）
+- Gitee 无 latest 下载路由，install.sh 用 Gitee 列表 API 解析最新版本号
+- Gitee API 偶发瞬时 404，workflow 中清理类步骤保持 best-effort 容错
+- Gitee 侧 issue/PR 已关闭，反馈引导至 GitHub Issues
+
 # Git Commit 规范
 
 ```
@@ -95,3 +103,4 @@ type: 中文描述
 - 配置字段优先用中文标识符与 JSON 键名一致；键名含特殊字符（`*`、`type` 等）时用英文标识符加 `#[serde(rename)]`；其余代码遵循 Rust 命名惯例
 - 不轻易加第三方依赖，优先标准库
 - 测试内联在文件底部 `#[cfg(test)] mod tests`
+- install.sh 保持 POSIX sh：trap 清理函数须保证退出码为 0（用 if 包裹），否则 dash 会把 trap 退出码当作脚本退出码

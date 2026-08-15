@@ -42,10 +42,20 @@ irm https://gitee.com/gaoyuanqi/dld/raw/main/install.ps1 | iex
 
 需要安装好 [Rust 工具链](https://rust-lang.org/zh-CN/)（≥1.97.0）
 
+> 国内建议先配置 crates.io 镜像（中科大），在 `~/.cargo/config.toml` 写入：
+>
+> ```toml
+> [source.crates-io]
+> replace-with = 'ustc'
+>
+> [source.ustc]
+> registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
+> ```
+
 **直接安装（推荐）**
 
 ```bash
-cargo install --git https://github.com/gaoyuanqi/dld.git --locked
+cargo install --git https://gitee.com/gaoyuanqi/dld.git --locked
 ```
 
 > Android 可借助 [Termux](https://termux.dev/) 直接安装
@@ -53,7 +63,7 @@ cargo install --git https://github.com/gaoyuanqi/dld.git --locked
 **克隆后安装**
 
 ```bash
-git clone https://github.com/gaoyuanqi/dld.git
+git clone https://gitee.com/gaoyuanqi/dld.git
 cd dld
 cargo install --path . --locked
 ```
