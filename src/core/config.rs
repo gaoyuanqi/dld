@@ -438,14 +438,14 @@ impl UpdatableConfig for AccountConfig {
     }
 
     fn validate(&self) -> Result<()> {
-        self.梦想之旅.validate()?;
         self.掠夺.validate()?;
+        self.历练.validate()?;
         self.会武.validate()?;
-        self.龙凰之境.兑换上限.validate()?;
+        self.梦想之旅.validate()?;
+        self.帮派商会.兑换商店.validate()?;
         self.江湖长梦.兑换上限.validate()?;
         self.江湖长梦.副本.validate()?;
-        self.历练.validate()?;
-        self.帮派商会.兑换商店.validate()?;
+        self.龙凰之境.兑换上限.validate()?;
         self.我的帮派.validate()?;
         self.门派邀请赛.兑换.validate()?;
         Ok(())
