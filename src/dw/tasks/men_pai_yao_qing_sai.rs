@@ -1,6 +1,8 @@
 //! 门派邀请赛
 //!
-//! 报名、领取段位奖励、免费挑战
+//! 报名、领取段位奖励、免费挑战、兑换
+//!
+//! 如果免费次数还剩5次则兑换
 
 use serde::Deserialize;
 
@@ -49,7 +51,6 @@ pub async fn run(d: &DaLeDou) {
             报名(d).await;
             领取段位奖励(d).await;
         }
-
         return;
     }
 
@@ -61,7 +62,7 @@ pub async fn run(d: &DaLeDou) {
     let left_fight_times: u8 = match data.left_fight_times.parse() {
         Ok(n) => n,
         Err(e) => {
-            d.log(TASK, &format!("解析 left_fight_times 失败: {e}"));
+            d.log(TASK, &format!("解析 left_fight_times 字段失败: {e}"));
             return;
         }
     };
@@ -69,6 +70,9 @@ pub async fn run(d: &DaLeDou) {
     // 前5次免费，算剩余免费次数
     let free_fight_times = left_fight_times.saturating_sub(5);
     挑战(d, free_fight_times).await;
+    if free_fight_times == 5 {
+        商店(d).await;
+    }
 }
 
 async fn 报名(d: &DaLeDou) {
@@ -86,8 +90,7 @@ async fn 报名(d: &DaLeDou) {
 
 async fn 领取段位奖励(d: &DaLeDou) {
     // 领取段位奖励
-    let cmd = "cmd=secttournament&op=getrankandrankingreward";
-    let data: Response = match d.get(cmd).await {
+    let data: Response = match d.get("cmd=secttournament&op=getrankandrankingreward").await {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("{e}"));
@@ -111,8 +114,119 @@ async fn 挑战(d: &DaLeDou, n: u8) {
 
         d.log(TASK, &data.msg);
         if data.result != "0" {
-            d.log(TASK, &data.msg);
             return;
         }
     }
+}
+
+async fn 商店(d: &DaLeDou) {
+    let exchange = &d.config().门派邀请赛.兑换;
+
+    // 所有物品配置数量都为 0，无需兑换
+    if exchange.炼气石 == 0 && exchange.门派强化书 == 0 {
+        return;
+    }
+
+    #[derive(Deserialize)]
+    struct Exchange {
+        result: String,
+        msg: String,
+        values: Values,
+        items: Vec<Items>,
+    }
+
+    #[derive(Deserialize)]
+    struct Values {
+        #[serde(rename = "11")]
+        score: String, // 商店积分
+    }
+
+    #[derive(Deserialize)]
+    struct Items {
+        #[serde(rename = "type")]
+        t: String,
+        name: String,
+        needs_num: String, // 消耗积分
+    }
+
+    // 商店
+    let data: Exchange = match d.get("cmd=exchange&subtype=16").await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    if data.result != "0" {
+        d.log(TASK, &data.msg);
+        return;
+    }
+
+    let mut score: u32 = match data.values.score.parse() {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("解析 score 字段失败：{e}"));
+            return;
+        }
+    };
+
+    // 商店积分低于单价
+    if score < 40 {
+        return;
+    }
+
+    for item in &data.items {
+        let want = match item.name.as_str() {
+            "炼气石" => exchange.炼气石,
+            "门派强化书" => exchange.门派强化书,
+            _ => continue,
+        };
+        if want == 0 {
+            continue;
+        }
+
+        let needs_num: u32 = match item.needs_num.parse() {
+            Ok(v) => v,
+            Err(e) => {
+                d.log(TASK, &format!("解析 {} needs_num 字段失败：{e}", item.name));
+                continue;
+            }
+        };
+
+        if needs_num == 0 {
+            d.log(TASK, &format!("{} 单价为：{needs_num}", item.name));
+            continue;
+        }
+
+        let max = want.min(score / needs_num);
+        if max == 0 {
+            continue;
+        }
+
+        let (tens, ones) = (max / 10, max % 10);
+        score -= needs_num * max;
+
+        for _ in 0..tens {
+            兑换(d, &item.t, 10).await;
+        }
+
+        for _ in 0..ones {
+            兑换(d, &item.t, 1).await;
+        }
+    }
+}
+
+async fn 兑换(d: &DaLeDou, t: &str, num: u8) {
+    // 兑换
+    let cmd = format!("cmd=exchange&subtype=2&type={t}&times={num}");
+    let data: Response = match d.get(&cmd).await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    d.log(TASK, &data.msg);
 }

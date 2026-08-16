@@ -429,6 +429,7 @@ pub struct AccountConfig {
     pub 深渊之潮: ShenYuanZhiChao,
     pub 龙凰之境: LongHuangZhiJing,
     pub 我的帮派: WoDeBangPai,
+    pub 门派邀请赛: MenPaiYaoQingSai,
 }
 
 impl UpdatableConfig for AccountConfig {
@@ -446,6 +447,7 @@ impl UpdatableConfig for AccountConfig {
         self.历练.validate()?;
         self.帮派商会.兑换商店.validate()?;
         self.我的帮派.validate()?;
+        self.门派邀请赛.兑换.validate()?;
         Ok(())
     }
 }
@@ -1121,6 +1123,31 @@ impl WoDeBangPai {
                 );
             }
         }
+        Ok(())
+    }
+}
+
+/// 门派邀请赛
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct MenPaiYaoQingSai {
+    pub 兑换: MenPaiExchange,
+}
+
+/// 门派邀请赛兑换
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct MenPaiExchange {
+    /// 兑换上限，0~20
+    pub 炼气石: u32,
+    /// 兑换上限，0~20
+    pub 门派强化书: u32,
+}
+
+impl MenPaiExchange {
+    fn validate(&self) -> Result<()> {
+        validate_range!("门派邀请赛.兑换.炼气石", self.炼气石, 0, 20);
+        validate_range!("门派邀请赛.兑换.门派强化书", self.门派强化书, 0, 20);
         Ok(())
     }
 }
@@ -1957,6 +1984,38 @@ mod tests {
         let json = format!("{{\"我的帮派\": {{\"供奉\": [{items}]}}}}");
         fs::write(&path, json).unwrap();
         assert!(AccountConfig::load(&path).is_err());
+    }
+
+    // 门派邀请赛炼气石兑换上限超限报错
+    #[test]
+    fn test_account_config_load_men_pai_lian_qi_shi_out_of_range() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let json = r#"{"门派邀请赛": {"兑换": {"炼气石": 21}}}"#;
+        fs::write(&path, json).unwrap();
+        assert!(AccountConfig::load(&path).is_err());
+    }
+
+    // 门派邀请赛门派强化书兑换上限超限报错
+    #[test]
+    fn test_account_config_load_men_pai_men_pai_qiang_hua_shu_out_of_range() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let json = r#"{"门派邀请赛": {"兑换": {"门派强化书": 21}}}"#;
+        fs::write(&path, json).unwrap();
+        assert!(AccountConfig::load(&path).is_err());
+    }
+
+    // 门派邀请赛兑换上限边界值合法
+    #[test]
+    fn test_account_config_load_men_pai_range_ok() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        let json = r#"{"门派邀请赛": {"兑换": {"炼气石": 20, "门派强化书": 20}}}"#;
+        fs::write(&path, json).unwrap();
+        let config = AccountConfig::load(&path).unwrap();
+        assert_eq!(config.门派邀请赛.兑换.炼气石, 20);
+        assert_eq!(config.门派邀请赛.兑换.门派强化书, 20);
     }
 
     // ─── BaGua::from_char 测试 ───

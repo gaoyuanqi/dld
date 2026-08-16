@@ -269,7 +269,7 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
-    /// 报名、领取段位奖励、免费挑战
+    /// 报名、领取段位奖励、免费挑战、兑换
     门派邀请赛 {
         #[command(flatten)]
         qq: QqArg,
