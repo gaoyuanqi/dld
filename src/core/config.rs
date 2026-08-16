@@ -2186,7 +2186,7 @@ mod tests {
         for (s, enabled) in huisuo.items() {
             assert!(enabled, "items() 中 {s:?} 应为 true");
             let tip = format!("教主想要{s}他将返回给你200商会银币");
-            assert!(huisuo.is_match(&tip), "开启后应匹配: {s}");
+            assert!(huisuo.is_match(&tip), "开启后应匹配：{s}");
         }
     }
 
@@ -2195,7 +2195,7 @@ mod tests {
         let huisuo = JiaoYiHuiSuo::default();
         for (s, _) in huisuo.items() {
             let tip = format!("教主想要{s}他将返回给你200商会银币");
-            assert!(!huisuo.is_match(&tip), "默认关闭不应匹配: {s}");
+            assert!(!huisuo.is_match(&tip), "默认关闭不应匹配：{s}");
         }
     }
 

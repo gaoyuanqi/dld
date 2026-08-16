@@ -30,7 +30,7 @@ pub fn default_http_client() -> Result<Client> {
         .build()
     {
         Ok(c) => c,
-        Err(e) => bail!("创建 HTTP 客户端失败: {e}"),
+        Err(e) => bail!("创建 HTTP 客户端失败：{e}"),
     };
     Ok(client)
 }
@@ -140,7 +140,7 @@ impl DaLeDouClient {
         let json = self.get("cmd=limit&op=login").await?;
         let check: LoginCheck = match serde_json::from_value(json) {
             Ok(v) => v,
-            Err(e) => bail!("登录校验响应格式异常: {e}"),
+            Err(e) => bail!("登录校验响应格式异常：{e}"),
         };
 
         if check.ret != 0 {

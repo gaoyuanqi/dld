@@ -62,7 +62,7 @@ pub async fn run(d: &DaLeDou) {
     let left_fight_times: u8 = match data.left_fight_times.parse() {
         Ok(n) => n,
         Err(e) => {
-            d.log(TASK, &format!("解析 left_fight_times 字段失败: {e}"));
+            d.log(TASK, &format!("解析 left_fight_times 字段失败：{e}"));
             return;
         }
     };

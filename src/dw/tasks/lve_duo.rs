@@ -127,7 +127,7 @@ async fn 掠夺(d: &DaLeDou) {
             };
 
             if first_power < 0.0 || !first_power.is_finite() {
-                d.log(TASK, &format!("power 数值异常: {first_power}"));
+                d.log(TASK, &format!("power 数值异常：{first_power}"));
                 return;
             }
 

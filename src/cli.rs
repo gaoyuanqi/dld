@@ -21,7 +21,7 @@ use crate::dw::tasks::Task;
     after_help = r#"
 所有任务命令（代玩、乐斗、武林等）都支持 -q 选项，用于指定单个 QQ 号。
 
-示例:
+示例：
   dld 标准目录
   dld 同步配置
   dld 登记 "openId=xxx; accessToken=yyy; newuin=123456"

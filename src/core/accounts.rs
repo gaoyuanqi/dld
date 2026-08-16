@@ -61,7 +61,7 @@ impl Account {
         for (key, value) in Self::parse_cookie_parts(cookie) {
             if key == "newuin" {
                 if !value.chars().all(|c| c.is_ascii_digit()) {
-                    bail!("newuin 必须为纯数字，当前值: {}", value);
+                    bail!("newuin 必须为纯数字，当前值：{}", value);
                 }
                 return Ok(value.to_string());
             }

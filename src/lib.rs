@@ -6,7 +6,7 @@
 //!
 //! ```text
 //! cli (命令解析)
-//!   -> app (应用编排: 登记, 注销, 代玩)
+//!   -> app (应用编排：登记, 注销, 代玩)
 //!      -> dw (玩法层)     core (核心层)
 //!         - daledou        - config
 //!         - tasks          - client
