@@ -265,6 +265,11 @@ async fn 遗迹商店(d: &DaLeDou) {
             }
         };
 
+        if cost == 0 {
+            d.log(TASK, &format!("{} 单价为：{cost}", item.name));
+            continue;
+        }
+
         if score < cost {
             continue;
         }

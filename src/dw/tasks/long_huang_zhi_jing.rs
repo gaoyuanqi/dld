@@ -284,6 +284,11 @@ async fn 兑换(d: &DaLeDou) {
             }
         };
 
+        if cost == 0 {
+            d.log(TASK, &format!("{} 单价为：{cost}", shop.name));
+            continue;
+        }
+
         let limit: u32 = match shop.limit.parse() {
             Ok(v) => v,
             Err(e) => {
@@ -414,11 +419,5 @@ mod tests {
         // 数据异常 remain > limit，saturating_sub 兜底
         // want=10, limit=100, remain=110 → exchanged=0, need=10
         assert_eq!(calc_max_exchange(10, 100, 110, 10000, 100), 10);
-    }
-
-    #[test]
-    fn test_cost_zero() {
-        // cost=0 时除零会 panic，但实际上层已跳过 cost==0 的情况
-        // 此测试确认调用方责任
     }
 }
