@@ -883,6 +883,16 @@ impl DuiHuanShangDian {
         if unique.len() != self.0.len() {
             bail!("帮派商会.兑换商店 物品不允许重复");
         }
+        for (i, item) in self.0.iter().enumerate() {
+            let chars = item.chars().count();
+            if chars == 0 || chars > 15 {
+                bail!(
+                    "帮派商会.兑换商店[{}] 期望 1~15 字符，实际为 {} 字符：\"{item}\"",
+                    i,
+                    chars
+                );
+            }
+        }
         Ok(())
     }
 }
@@ -2117,6 +2127,27 @@ mod tests {
     #[test]
     fn test_dui_huan_shang_dian_valid() {
         let d = DuiHuanShangDian(vec!["物品1".to_string(), "物品2".to_string()]);
+        assert!(d.validate().is_ok());
+    }
+
+    // 物品名空字符串拒绝
+    #[test]
+    fn test_dui_huan_shang_dian_empty_name() {
+        let d = DuiHuanShangDian(vec!["".to_string()]);
+        assert!(d.validate().is_err());
+    }
+
+    // 物品名超 15 字符拒绝
+    #[test]
+    fn test_dui_huan_shang_dian_name_too_long() {
+        let d = DuiHuanShangDian(vec!["物".repeat(16)]);
+        assert!(d.validate().is_err());
+    }
+
+    // 物品名 15 字符合法
+    #[test]
+    fn test_dui_huan_shang_dian_name_max_chars() {
+        let d = DuiHuanShangDian(vec!["物".repeat(15)]);
         assert!(d.validate().is_ok());
     }
 
