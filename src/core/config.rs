@@ -1166,6 +1166,27 @@ mod tests {
         dir.path().join("global_config.json")
     }
 
+    // 账号配置路径
+    fn account_path(dir: &tempfile::TempDir) -> std::path::PathBuf {
+        dir.path().join("config.json")
+    }
+
+    // 写入 JSON 后加载全局配置
+    fn load_global(json: &str) -> Result<GlobalConfig> {
+        let dir = tempfile::tempdir().unwrap();
+        let path = config_path(&dir);
+        fs::write(&path, json).unwrap();
+        GlobalConfig::load(&path)
+    }
+
+    // 写入 JSON 后加载账号配置
+    fn load_account(json: &str) -> Result<AccountConfig> {
+        let dir = tempfile::tempdir().unwrap();
+        let path = account_path(&dir);
+        fs::write(&path, json).unwrap();
+        AccountConfig::load(&path)
+    }
+
     // 默认值正确
     #[test]
     fn test_global_config_default() {
@@ -1180,11 +1201,7 @@ mod tests {
     // 部分字段缺失时用默认值补齐
     #[test]
     fn test_load_partial_file_fills_defaults() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = config_path(&dir);
-        let json = r#"{}"#;
-        fs::write(&path, json).unwrap();
-        let config = GlobalConfig::load(&path).unwrap();
+        let config = load_global(r#"{}"#).unwrap();
         assert_eq!(config.运行时.并发数, 5);
         assert_eq!(config.运行时.日志保留天数, 30);
         assert_eq!(config.兑换码.code, "161616");
@@ -1195,22 +1212,14 @@ mod tests {
     // 子对象存在但内部为空，用默认值补齐
     #[test]
     fn test_load_empty_sub_object_fills_defaults() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = config_path(&dir);
-        let json = r#"{"兑换码": {}}"#;
-        fs::write(&path, json).unwrap();
-        let config = GlobalConfig::load(&path).unwrap();
+        let config = load_global(r#"{"兑换码": {}}"#).unwrap();
         assert_eq!(config.兑换码.code, "161616");
     }
 
     // 已有合法配置文件，读取后保留用户值
     #[test]
     fn test_load_existing_valid_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = config_path(&dir);
-        let json = r#"{"兑换码": {"code": "888888"}}"#;
-        fs::write(&path, json).unwrap();
-        let config = GlobalConfig::load(&path).unwrap();
+        let config = load_global(r#"{"兑换码": {"code": "888888"}}"#).unwrap();
         assert_eq!(config.兑换码.code, "888888");
     }
 
@@ -1229,20 +1238,14 @@ mod tests {
     // 非法 JSON 应报错
     #[test]
     fn test_load_invalid_json_errors() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = config_path(&dir);
-        fs::write(&path, "not json").unwrap();
-        assert!(GlobalConfig::load(&path).is_err());
+        assert!(load_global("not json").is_err());
     }
 
     // 字段类型不匹配应报错
     #[test]
     fn test_load_type_mismatch_errors() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = config_path(&dir);
         // code 是 String，给数字应报错
-        fs::write(&path, r#"{"兑换码": {"code": 123}}"#).unwrap();
-        assert!(GlobalConfig::load(&path).is_err());
+        assert!(load_global(r#"{"兑换码": {"code": 123}}"#).is_err());
     }
 
     // ─── GlobalConfig update 测试 ───
@@ -1367,11 +1370,7 @@ mod tests {
     // 运行时校验：边界值合法
     #[test]
     fn test_global_config_load_validate_range_ok() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = config_path(&dir);
-        let json = r#"{"运行时": {"并发数": 1, "日志保留天数": 90}}"#;
-        fs::write(&path, json).unwrap();
-        let config = GlobalConfig::load(&path).unwrap();
+        let config = load_global(r#"{"运行时": {"并发数": 1, "日志保留天数": 90}}"#).unwrap();
         assert_eq!(config.运行时.并发数, 1);
         assert_eq!(config.运行时.日志保留天数, 90);
     }
@@ -1379,21 +1378,13 @@ mod tests {
     // 并发数超上限报错
     #[test]
     fn test_global_config_load_validate_concurrency_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = config_path(&dir);
-        let json = r#"{"运行时": {"并发数": 21}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(GlobalConfig::load(&path).is_err());
+        assert!(load_global(r#"{"运行时": {"并发数": 21}}"#).is_err());
     }
 
     // 日志保留天数超上限报错
     #[test]
     fn test_global_config_load_validate_retention_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = config_path(&dir);
-        let json = r#"{"运行时": {"日志保留天数": 91}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(GlobalConfig::load(&path).is_err());
+        assert!(load_global(r#"{"运行时": {"日志保留天数": 91}}"#).is_err());
     }
 
     // update 路径校验：并发数为 0 报错
@@ -1410,21 +1401,13 @@ mod tests {
     // 兑换码长度不足 6 位报错
     #[test]
     fn test_global_config_load_validate_code_too_short() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = config_path(&dir);
-        let json = r#"{"兑换码": {"code": "12345"}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(GlobalConfig::load(&path).is_err());
+        assert!(load_global(r#"{"兑换码": {"code": "12345"}}"#).is_err());
     }
 
     // 兑换码含非数字字符报错
     #[test]
     fn test_global_config_load_validate_code_not_digit() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = config_path(&dir);
-        let json = r#"{"兑换码": {"code": "abc123"}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(GlobalConfig::load(&path).is_err());
+        assert!(load_global(r#"{"兑换码": {"code": "abc123"}}"#).is_err());
     }
 
     // update 路径校验：兑换码长度不足报错
@@ -1457,11 +1440,8 @@ mod tests {
     // 已有合法配置文件，读取后保留用户值
     #[test]
     fn test_account_config_load_existing_valid() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         let json = r#"{"矿洞": {"开启副本": {"层数": "第三层", "模式": "普通"}}}"#;
-        fs::write(&path, json).unwrap();
-        let config = AccountConfig::load(&path).unwrap();
+        let config = load_account(json).unwrap();
         assert_eq!(config.矿洞.开启副本.层数, KuangDongFloor::F3);
         assert_eq!(config.矿洞.开启副本.模式, KuangDongMode::Normal);
     }
@@ -1470,7 +1450,7 @@ mod tests {
     #[test]
     fn test_account_config_load_creates_default() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
+        let path = account_path(&dir);
         assert!(!path.exists());
         let config = AccountConfig::load(&path).unwrap();
         assert_eq!(config.矿洞.开启副本.层数, KuangDongFloor::F1);
@@ -1481,11 +1461,7 @@ mod tests {
     // 部分字段缺失时用默认值补齐
     #[test]
     fn test_account_config_load_partial_file_fills_defaults() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{}"#;
-        fs::write(&path, json).unwrap();
-        let config = AccountConfig::load(&path).unwrap();
+        let config = load_account(r#"{}"#).unwrap();
         assert_eq!(config.矿洞.开启副本.层数, KuangDongFloor::F1);
         assert_eq!(config.矿洞.开启副本.模式, KuangDongMode::Easy);
         assert!(!config.竞技场.兑换河图洛书);
@@ -1494,63 +1470,40 @@ mod tests {
     // 子对象存在但内部为空，用默认值补齐
     #[test]
     fn test_account_config_load_empty_sub_object_fills_defaults() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"竞技场": {}}"#;
-        fs::write(&path, json).unwrap();
-        let config = AccountConfig::load(&path).unwrap();
+        let config = load_account(r#"{"竞技场": {}}"#).unwrap();
         assert!(!config.竞技场.兑换河图洛书);
     }
 
     // 梦想之旅机票数超上限报错
     #[test]
     fn test_account_config_load_validate_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"梦想之旅": {"最多消耗梦幻机票数量": 10}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"梦想之旅": {"最多消耗梦幻机票数量": 10}}"#).is_err());
     }
 
     // 梦想之旅机票数边界值合法
     #[test]
     fn test_account_config_load_validate_range_ok() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"梦想之旅": {"最多消耗梦幻机票数量": 9}}"#;
-        fs::write(&path, json).unwrap();
-        let config = AccountConfig::load(&path).unwrap();
+        let config = load_account(r#"{"梦想之旅": {"最多消耗梦幻机票数量": 9}}"#).unwrap();
         assert_eq!(config.梦想之旅.最多消耗梦幻机票数量, 9);
     }
 
     // 掠夺目标战力超上限报错
     #[test]
     fn test_account_config_load_lue_duo_target_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"掠夺": {"目标战力": 100000}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"掠夺": {"目标战力": 100000}}"#).is_err());
     }
 
     // 掠夺战力增量超上限报错
     #[test]
     fn test_account_config_load_lue_duo_increment_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"掠夺": {"战力增量": 10000}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"掠夺": {"战力增量": 10000}}"#).is_err());
     }
 
     // 掠夺边界值合法
     #[test]
     fn test_account_config_load_lue_duo_range_ok() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         let json = r#"{"掠夺": {"目标战力": 99999, "战力增量": 9999}}"#;
-        fs::write(&path, json).unwrap();
-        let config = AccountConfig::load(&path).unwrap();
+        let config = load_account(json).unwrap();
         assert_eq!(config.掠夺.目标战力, 99999);
         assert_eq!(config.掠夺.战力增量, 9999);
     }
@@ -1558,73 +1511,46 @@ mod tests {
     // 会武卷轴数量超上限报错
     #[test]
     fn test_account_config_load_hui_wu_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"会武": {"兑换真黄金卷轴数量": 101}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"会武": {"兑换真黄金卷轴数量": 101}}"#).is_err());
     }
 
     // 会武卷轴数量边界值合法
     #[test]
     fn test_account_config_load_hui_wu_range_ok() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"会武": {"兑换真黄金卷轴数量": 100}}"#;
-        fs::write(&path, json).unwrap();
-        let config = AccountConfig::load(&path).unwrap();
+        let config = load_account(r#"{"会武": {"兑换真黄金卷轴数量": 100}}"#).unwrap();
         assert_eq!(config.会武.兑换真黄金卷轴数量, 100);
     }
 
     // 龙凰之境凰髓超上限报错
     #[test]
     fn test_account_config_load_long_huang_huang_sui_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"龙凰之境": {"兑换上限": {"凰髓": 101}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"龙凰之境": {"兑换上限": {"凰髓": 101}}}"#).is_err());
     }
 
     // 龙凰之境凰火超上限报错
     #[test]
     fn test_account_config_load_long_huang_huang_huo_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"龙凰之境": {"兑换上限": {"凰火": 17}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"龙凰之境": {"兑换上限": {"凰火": 17}}}"#).is_err());
     }
 
     // 龙凰之境龙玉超上限报错
     #[test]
     fn test_account_config_load_long_huang_long_yu_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"龙凰之境": {"兑换上限": {"龙玉": 101}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"龙凰之境": {"兑换上限": {"龙玉": 101}}}"#).is_err());
     }
 
     // 龙凰之境论武券超上限报错
     #[test]
     fn test_account_config_load_long_huang_lun_wu_quan_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"龙凰之境": {"兑换上限": {"论武券": 41}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"龙凰之境": {"兑换上限": {"论武券": 41}}}"#).is_err());
     }
 
     // 龙凰之境边界值合法
     #[test]
     fn test_account_config_load_long_huang_range_ok() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         let json =
             r#"{"龙凰之境": {"兑换上限": {"凰髓": 100, "凰火": 16, "龙玉": 100, "论武券": 40}}}"#;
-        fs::write(&path, json).unwrap();
-        let config = AccountConfig::load(&path).unwrap();
+        let config = load_account(json).unwrap();
         assert_eq!(config.龙凰之境.兑换上限.凰髓, 100);
         assert_eq!(config.龙凰之境.兑换上限.凰火, 16);
         assert_eq!(config.龙凰之境.兑换上限.龙玉, 100);
@@ -1634,81 +1560,50 @@ mod tests {
     // 江湖长梦玄铁令超上限报错
     #[test]
     fn test_account_config_load_chang_meng_xuan_tie_ling_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"江湖长梦": {"兑换上限": {"玄铁令": 51}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"玄铁令": 51}}}"#).is_err());
     }
 
     // 江湖长梦淬火结晶超上限报错
     #[test]
     fn test_account_config_load_chang_meng_cui_huo_jie_jing_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"江湖长梦": {"兑换上限": {"淬火结晶": 51}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"淬火结晶": 51}}}"#).is_err());
     }
 
     // 江湖长梦石中剑超上限报错
     #[test]
     fn test_account_config_load_chang_meng_shi_zhong_jian_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"江湖长梦": {"兑换上限": {"石中剑": 51}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"石中剑": 51}}}"#).is_err());
     }
 
     // 江湖长梦大型武器符咒超上限报错
     #[test]
     fn test_account_config_load_chang_meng_da_xing_wu_qi_fu_zhou_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"江湖长梦": {"兑换上限": {"大型武器符咒": 51}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"大型武器符咒": 51}}}"#).is_err());
     }
 
     // 江湖长梦中型武器符咒超上限报错
     #[test]
     fn test_account_config_load_chang_meng_zhong_xing_wu_qi_fu_zhou_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"江湖长梦": {"兑换上限": {"中型武器符咒": 51}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"中型武器符咒": 51}}}"#).is_err());
     }
 
     // 江湖长梦小型武器符咒超上限报错
     #[test]
     fn test_account_config_load_chang_meng_xiao_xing_wu_qi_fu_zhou_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"江湖长梦": {"兑换上限": {"小型武器符咒": 51}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"小型武器符咒": 51}}}"#).is_err());
     }
 
     // 江湖长梦投掷武器符咒超上限报错
     #[test]
     fn test_account_config_load_chang_meng_tou_zhi_wu_qi_fu_zhou_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"江湖长梦": {"兑换上限": {"投掷武器符咒": 51}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"投掷武器符咒": 51}}}"#).is_err());
     }
 
     // 江湖长梦兑换上限边界值合法
     #[test]
     fn test_account_config_load_chang_meng_range_ok() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         let json = r#"{"江湖长梦": {"兑换上限": {"玄铁令": 50, "淬火结晶": 50, "石中剑": 50, "大型武器符咒": 50, "中型武器符咒": 50, "小型武器符咒": 50, "投掷武器符咒": 50}}}"#;
-        fs::write(&path, json).unwrap();
-        let config = AccountConfig::load(&path).unwrap();
+        let config = load_account(json).unwrap();
         assert_eq!(config.江湖长梦.兑换上限.玄铁令, 50);
         assert_eq!(config.江湖长梦.兑换上限.淬火结晶, 50);
         assert_eq!(config.江湖长梦.兑换上限.石中剑, 50);
@@ -1731,41 +1626,28 @@ mod tests {
     // 江湖长梦副本执行次数超上限报错
     #[test]
     fn test_account_config_load_chang_meng_copy_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"江湖长梦": {"副本": {"柒承的忙碌日常": 201}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"江湖长梦": {"副本": {"柒承的忙碌日常": 201}}}"#).is_err());
     }
 
     // 江湖长梦副本执行次数边界值合法
     #[test]
     fn test_account_config_load_chang_meng_copy_range_ok() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         let json = r#"{"江湖长梦": {"副本": {"柒承的忙碌日常": 200}}}"#;
-        fs::write(&path, json).unwrap();
-        let config = AccountConfig::load(&path).unwrap();
+        let config = load_account(json).unwrap();
         assert_eq!(config.江湖长梦.副本.柒承的忙碌日常, 200);
     }
 
     // 非法 JSON 应报错
     #[test]
     fn test_account_config_load_invalid_json_errors() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        fs::write(&path, "not json").unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account("not json").is_err());
     }
 
     // 枚举值无效应报错
     #[test]
     fn test_account_config_load_type_mismatch_errors() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         // 层数 不是有效枚举值应报错
-        fs::write(&path, r#"{"矿洞": {"开启副本": {"层数": "无效层"}}}"#).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"矿洞": {"开启副本": {"层数": "无效层"}}}"#).is_err());
     }
 
     // ─── AccountConfig update 测试 ───
@@ -1774,7 +1656,7 @@ mod tests {
     #[test]
     fn test_account_config_update_file_not_exists_creates_default() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
+        let path = account_path(&dir);
         let diff = AccountConfig::update(&path).unwrap();
         let content = read_file(&path);
         assert!(content.contains("第一层"));
@@ -1788,7 +1670,7 @@ mod tests {
     #[test]
     fn test_account_config_update_no_changes() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
+        let path = account_path(&dir);
         let json = serde_json::to_string_pretty(&AccountConfig::default()).unwrap();
         fs::write(&path, &json).unwrap();
         let before = read_file(&path);
@@ -1803,7 +1685,7 @@ mod tests {
     #[test]
     fn test_account_config_update_adds_missing_fields_preserves_existing() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
+        let path = account_path(&dir);
         let json = r#"{"矿洞": {"开启副本": {"层数": "第五层"}}}"#;
         fs::write(&path, json).unwrap();
         let diff = AccountConfig::update(&path).unwrap();
@@ -1818,7 +1700,7 @@ mod tests {
     #[test]
     fn test_account_config_update_empty_sub_object_fills_defaults() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
+        let path = account_path(&dir);
         let json = r#"{"竞技场": {}}"#;
         fs::write(&path, json).unwrap();
         let diff = AccountConfig::update(&path).unwrap();
@@ -1832,7 +1714,7 @@ mod tests {
     #[test]
     fn test_account_config_update_removes_deprecated_fields() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
+        let path = account_path(&dir);
         let json = r#"{"矿洞": {"开启副本": {"层数": "第一层"}}, "废弃项": {"x": "y"}}"#;
         fs::write(&path, json).unwrap();
         let diff = AccountConfig::update(&path).unwrap();
@@ -1846,7 +1728,7 @@ mod tests {
     #[test]
     fn test_account_config_update_empty_file() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
+        let path = account_path(&dir);
         fs::write(&path, "{}").unwrap();
         AccountConfig::update(&path).unwrap();
         let content = read_file(&path);
@@ -1858,7 +1740,7 @@ mod tests {
     #[test]
     fn test_account_config_update_invalid_json_errors() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
+        let path = account_path(&dir);
         let junk = "not json";
         fs::write(&path, junk).unwrap();
         assert!(AccountConfig::update(&path).is_err());
@@ -1869,7 +1751,7 @@ mod tests {
     #[test]
     fn test_account_config_update_type_mismatch_errors() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
+        let path = account_path(&dir);
         let json = r#"{"矿洞": {"开启副本": {"层数": "无效层"}}}"#;
         fs::write(&path, json).unwrap();
         assert!(AccountConfig::update(&path).is_err());
@@ -1880,7 +1762,7 @@ mod tests {
     #[test]
     fn test_account_config_update_range_validation_errors() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
+        let path = account_path(&dir);
         let json = r#"{"梦想之旅": {"最多消耗梦幻机票数量": 50}}"#;
         fs::write(&path, json).unwrap();
         assert!(AccountConfig::update(&path).is_err());
@@ -1890,41 +1772,28 @@ mod tests {
     // 历练 BOSS顺序 数量不足校验
     #[test]
     fn test_account_config_load_li_lian_too_few() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"历练": {"乐斗顺序": ["凶尸-令狐冲"]}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"历练": {"乐斗顺序": ["凶尸-令狐冲"]}}"#).is_err());
     }
 
     // 历练 BOSS顺序 数量过多校验
     #[test]
     fn test_account_config_load_li_lian_too_many() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         let json = r#"{"历练": {"乐斗顺序": ["凶尸-令狐冲","虾兵头目-丁春秋","夜叉元帅-丘处机","霹雳头领-小龙女","宋姜-韦小宝","大鹏-扫地僧","马大王-鹤笔翁","嗜血鬼王-韦一笑","象仙-赵敏","象仙-赵敏"]}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(json).is_err());
     }
 
     // 历练 BOSS顺序 重复校验
     #[test]
     fn test_account_config_load_li_lian_duplicate() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         let json = r#"{"历练": {"乐斗顺序": ["凶尸-令狐冲","虾兵头目-丁春秋","夜叉元帅-丘处机","霹雳头领-小龙女","宋姜-韦小宝","大鹏-扫地僧","马大王-鹤笔翁","嗜血鬼王-韦一笑","嗜血鬼王-韦一笑"]}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(json).is_err());
     }
 
     // 历练 BOSS顺序 合法自定义配置
     #[test]
     fn test_account_config_load_li_lian_custom() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         let json = r#"{"历练": {"乐斗顺序": ["象仙-赵敏","凶尸-令狐冲","虾兵头目-丁春秋","夜叉元帅-丘处机","霹雳头领-小龙女","宋姜-韦小宝","大鹏-扫地僧","马大王-鹤笔翁","嗜血鬼王-韦一笑"]}}"#;
-        fs::write(&path, json).unwrap();
-        let config = AccountConfig::load(&path).unwrap();
+        let config = load_account(json).unwrap();
         assert_eq!(config.历练.乐斗顺序[0], LiLianBoss::XiangXian);
         assert_eq!(config.历练.乐斗顺序[1], LiLianBoss::XiongShi);
         assert_eq!(config.历练.乐斗顺序.len(), 9);
@@ -1933,11 +1802,8 @@ mod tests {
     // 历练 BOSS顺序 无效枚举值应报错
     #[test]
     fn test_account_config_load_li_lian_invalid_boss() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         let json = r#"{"历练": {"乐斗顺序": ["凶尸-令狐冲","虾兵头目-丁春秋","夜叉元帅-丘处机","霹雳头领-小龙女","宋姜-韦小宝","大鹏-扫地僧","马大王-鹤笔翁","嗜血鬼王-韦一笑","不存在-BOSS"]}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(json).is_err());
     }
 
     // ─── WoDeBangPai validate 测试 ───
@@ -1975,45 +1841,31 @@ mod tests {
     // 供奉超限 — 走完整加载链路
     #[test]
     fn test_account_config_load_wo_de_bang_pai_too_many_offerings() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         let items = (0..41)
             .map(|i| format!("\"物品{i}\""))
             .collect::<Vec<_>>()
             .join(",");
         let json = format!("{{\"我的帮派\": {{\"供奉\": [{items}]}}}}");
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(&json).is_err());
     }
 
     // 门派邀请赛炼气石兑换上限超限报错
     #[test]
     fn test_account_config_load_men_pai_lian_qi_shi_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"门派邀请赛": {"兑换": {"炼气石": 21}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"门派邀请赛": {"兑换": {"炼气石": 21}}}"#).is_err());
     }
 
     // 门派邀请赛门派强化书兑换上限超限报错
     #[test]
     fn test_account_config_load_men_pai_men_pai_qiang_hua_shu_out_of_range() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let json = r#"{"门派邀请赛": {"兑换": {"门派强化书": 21}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::load(&path).is_err());
+        assert!(load_account(r#"{"门派邀请赛": {"兑换": {"门派强化书": 21}}}"#).is_err());
     }
 
     // 门派邀请赛兑换上限边界值合法
     #[test]
     fn test_account_config_load_men_pai_range_ok() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
         let json = r#"{"门派邀请赛": {"兑换": {"炼气石": 20, "门派强化书": 20}}}"#;
-        fs::write(&path, json).unwrap();
-        let config = AccountConfig::load(&path).unwrap();
+        let config = load_account(json).unwrap();
         assert_eq!(config.门派邀请赛.兑换.炼气石, 20);
         assert_eq!(config.门派邀请赛.兑换.门派强化书, 20);
     }
@@ -2095,11 +1947,8 @@ mod tests {
 
     #[test]
     fn test_bagua_mizhen_validate_duplicate_via_load() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = config_path(&dir);
         let json = r#"{"时空遗迹": {"八卦迷阵": {"第一层": "震", "第二层": "震", "第三层": "坤", "第四层": "离"}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(GlobalConfig::load(&path).is_err());
+        assert!(load_global(json).is_err());
     }
 
     #[test]
