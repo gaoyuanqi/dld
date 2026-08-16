@@ -1115,11 +1115,12 @@ impl WoDeBangPai {
             bail!("我的帮派.供奉 期望 0~40 个，当前 {} 个", self.供奉.len());
         }
         for (i, item) in self.供奉.iter().enumerate() {
-            if item.len() > 30 {
+            let chars = item.chars().count();
+            if chars == 0 || chars > 15 {
                 bail!(
-                    "我的帮派.供奉[{}] 期望 1~30 字符，实际为 {} 字符：\"{item}\"",
+                    "我的帮派.供奉[{}] 期望 1~15 字符，实际为 {} 字符：\"{item}\"",
                     i,
-                    item.len()
+                    chars
                 );
             }
         }
@@ -1823,7 +1824,37 @@ mod tests {
     fn test_wo_de_bang_pai_item_too_long() {
         let config = WoDeBangPai {
             报名: false,
-            供奉: vec!["a".repeat(31)],
+            供奉: vec!["a".repeat(16)],
+        };
+        assert!(config.validate().is_err());
+    }
+
+    // 供奉空字符串拒绝
+    #[test]
+    fn test_wo_de_bang_pai_empty_offering() {
+        let config = WoDeBangPai {
+            报名: false,
+            供奉: vec!["".to_string()],
+        };
+        assert!(config.validate().is_err());
+    }
+
+    // 中文按字符数计：11 个汉字（33 字节）合法
+    #[test]
+    fn test_wo_de_bang_pai_chinese_chars_valid() {
+        let config = WoDeBangPai {
+            报名: false,
+            供奉: vec!["供".repeat(11)],
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    // 超过 15 个字符拒绝
+    #[test]
+    fn test_wo_de_bang_pai_too_many_chars() {
+        let config = WoDeBangPai {
+            报名: false,
+            供奉: vec!["供".repeat(16)],
         };
         assert!(config.validate().is_err());
     }
