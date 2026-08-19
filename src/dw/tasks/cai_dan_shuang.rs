@@ -13,9 +13,12 @@ pub async fn run(d: &DaLeDou) {
     struct Query {
         result: String,
         msg: String,
-        #[serde(default)]
         status: String,
+        list: Vec<List>,
     }
+
+    #[derive(Deserialize)]
+    struct List {}
 
     let data: Query = match d.get("cmd=oddeven").await {
         Ok(v) => v,
@@ -35,7 +38,7 @@ pub async fn run(d: &DaLeDou) {
         return;
     }
 
-    if data.status == "0" {
+    if data.status == "0" && data.list.is_empty() {
         猜单双(d).await;
     }
 }
