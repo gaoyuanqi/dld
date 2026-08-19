@@ -86,7 +86,7 @@ async fn 报名单排(d: &DaLeDou) -> bool {
         };
 
         d.log(TASK, &data.msg);
-        if data.result != "0" {
+        if !data.msg.contains("兑换玄铁令*1成功") {
             return false;
         }
     }
