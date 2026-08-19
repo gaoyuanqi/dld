@@ -2,7 +2,11 @@
 //!
 //! 攻击、领取岛屿和节点奖励
 //!
+//! 按照战力从低到高攻击
+//!
 //! 战败时才领取奖励，这样可以免费复活一次
+
+use std::cmp::Ordering;
 
 use serde::Deserialize;
 
@@ -38,31 +42,19 @@ pub async fn run(d: &DaLeDou) {
             return;
         }
 
-        for item in &data.fight_info.island_info {
-            // 未激活
-            if item.point_status == "0" {
-                break;
+        for info in &data.fight_info.island_info {
+            // 节点未激活
+            if info.point_status == "0" {
+                return;
             }
 
-            // 已通关
-            if item.point_status == "2" {
+            // 节点已通关
+            if info.point_status == "2" {
                 continue;
             }
 
-            let Some(point_data) = 参战(d, &item.point_id).await else {
-                break;
-            };
-
-            for p in point_data.settle_usr_info.iter().rev() {
-                // 驻守玩家已战败
-                if p.is_dead == "1" {
-                    continue;
-                }
-
-                if !攻击(d, &item.point_id, &p.opp_uin).await && !领取奖励(d).await {
-                    return;
-                }
-            }
+            fight_node(d, info).await;
+            break;
         }
     }
 }
@@ -177,10 +169,52 @@ async fn 节点奖励(d: &DaLeDou, point_id: &str) -> bool {
     data.result == "0"
 }
 
+async fn fight_node(d: &DaLeDou, info: &IslandInfo) {
+    let Some(data) = 参战(d, &info.point_id, "1").await else {
+        return;
+    };
+
+    let total_pages: u8 = match data.total_pages.parse() {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("解析 total_pages 字段失败：{e}"));
+            return;
+        }
+    };
+
+    // 收集所有驻守玩家（第一页已包含）
+    let mut all_defenders = data.settle_usr_info;
+    for page in 2..=total_pages {
+        let Some(data) = 参战(d, &info.point_id, &page.to_string()).await else {
+            return;
+        };
+        all_defenders.extend(data.settle_usr_info);
+    }
+
+    // 过滤已战败，并按战力（浮点数）从低到高排序
+    let mut defenders: Vec<SettleUsrInfo> = all_defenders
+        .into_iter()
+        .filter(|p| p.is_dead == "0")
+        .collect();
+    defenders.sort_by(|a, b| {
+        let a_val = a.fight_capacity.parse::<f64>().unwrap_or(f64::INFINITY);
+        let b_val = b.fight_capacity.parse::<f64>().unwrap_or(f64::INFINITY);
+        a_val.partial_cmp(&b_val).unwrap_or(Ordering::Equal)
+    });
+
+    for defender in defenders {
+        if !攻击(d, &info.point_id, &defender.opp_uin).await {
+            return;
+        }
+    }
+}
+
 #[derive(Deserialize)]
 struct Point {
     result: String,
     msg: String,
+    #[serde(rename = "totalPages")]
+    total_pages: String, // 总页数
     #[serde(rename = "settleUsrInfo")]
     settle_usr_info: Vec<SettleUsrInfo>, // 驻守玩家信息
 }
@@ -190,12 +224,14 @@ struct SettleUsrInfo {
     #[serde(rename = "oppUin")]
     opp_uin: String, // QQ
     #[serde(rename = "isDead")]
-    is_dead: String, // 是否战败
+    is_dead: String, // 驻守玩家是否阵亡
+    #[serde(rename = "fightCapacity")]
+    fight_capacity: String, // 战力
 }
 
-async fn 参战(d: &DaLeDou, point_id: &str) -> Option<Point> {
+async fn 参战(d: &DaLeDou, point_id: &str, page: &str) -> Option<Point> {
     // 参战
-    let cmd = format!("cmd=factionarmy&op=viewpoint&point_id={point_id}");
+    let cmd = format!("cmd=factionarmy&op=viewpoint&point_id={point_id}&page={page}");
     let data: Point = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
@@ -203,11 +239,6 @@ async fn 参战(d: &DaLeDou, point_id: &str) -> Option<Point> {
             return None;
         }
     };
-
-    // 点未解锁：当前岛屿已通关
-    if data.result == "-1" {
-        return None;
-    }
 
     if data.result != "0" {
         d.log(TASK, &data.msg);
@@ -230,7 +261,9 @@ async fn 攻击(d: &DaLeDou, point_id: &str, opp_uin: &str) -> bool {
 
     d.log(TASK, &data.msg);
     if data.result != "0" {
-        return false;
+        // {"result":"-1","msg":"您的血量不足，请重生后在进行战斗","replays":""}
+        // {"result":"-1","msg":"该敌人似乎逃跑啦~ 更换一名敌人进行战斗吧！","replays":""}
+        return data.msg.starts_with("该敌人似乎逃跑啦");
     }
 
     data.msg.starts_with("勇士，恭喜您战胜")
