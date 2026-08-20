@@ -419,6 +419,11 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
+    /// 领取
+    大侠回归 {
+        #[command(flatten)]
+        qq: QqArg,
+    },
     /// 打印帮助信息
     #[command(name = "help")]
     帮助,
@@ -505,6 +510,7 @@ pub async fn parse_args() -> Result<()> {
         Command::元武登高 { qq } => app.run_task(Task::元武登高, qq.qq).await?,
         Command::乐斗菜单 { qq } => app.run_task(Task::乐斗菜单, qq.qq).await?,
         Command::幸运转盘 { qq } => app.run_task(Task::幸运转盘, qq.qq).await?,
+        Command::大侠回归 { qq } => app.run_task(Task::大侠回归, qq.qq).await?,
         Command::帮助 => {
             Cli::command().print_help()?;
         }
