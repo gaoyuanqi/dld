@@ -20,11 +20,8 @@ pub async fn run(d: &DaLeDou) {
         #[serde(default)]
         sign_up: String, // 是否已参与防守
         #[serde(default)]
-        today_game: Vec<TodayGame>, // 对阵信息，当前仅用于判断是否结算日
+        today_game: Vec<serde_json::Value>, // 对阵信息，当前仅用于判断是否结算日
     }
-
-    #[derive(Deserialize)]
-    struct TodayGame {}
 
     for _ in 0..2 {
         let data: Query = match d.get("cmd=factionleague&op=0").await {

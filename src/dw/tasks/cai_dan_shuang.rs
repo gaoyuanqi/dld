@@ -14,11 +14,8 @@ pub async fn run(d: &DaLeDou) {
         result: String,
         msg: String,
         status: String,
-        list: Vec<List>,
+        list: Vec<serde_json::Value>,
     }
-
-    #[derive(Deserialize)]
-    struct List {}
 
     let data: Query = match d.get("cmd=oddeven").await {
         Ok(v) => v,
