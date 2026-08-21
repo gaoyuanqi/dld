@@ -13,7 +13,9 @@ pub async fn run(d: &DaLeDou) {
     struct Query {
         result: String,
         msg: String,
+        #[serde(default)]
         status: String,
+        #[serde(default)]
         list: Vec<serde_json::Value>,
     }
 
