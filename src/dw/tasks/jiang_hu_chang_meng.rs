@@ -32,8 +32,8 @@ pub async fn run(d: &DaLeDou) {
         }
 
         match item.name.as_str() {
-            "柒承的忙碌日常" => 柒承的忙碌日常(d, item).await,
-            "倚天屠龙归我心" => 倚天屠龙归我心(d, item).await,
+            "柒承的忙碌日常" => 跑副本(d, item, 副本::柒承).await,
+            "倚天屠龙归我心" => 跑副本(d, item, 副本::倚天).await,
             _ => continue,
         }
     }
@@ -79,6 +79,97 @@ async fn query(d: &DaLeDou) -> Option<Query> {
     Some(data)
 }
 
+/// 副本类型，对应事件处理逻辑
+#[derive(Clone, Copy)]
+enum 副本 {
+    柒承,
+    倚天,
+}
+
+/// 副本主流程：处理香炉、胜负、天数推进，事件选择交给 `kind` 对应的事件处理函数
+async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
+    let limit = d.config().江湖长梦.limit(&copy.name);
+    if limit == 0 {
+        return;
+    }
+
+    let Some(mut num) = get_item_num(d, &copy.use_desc).await else {
+        return;
+    };
+
+    // 执行次数不超过配置上限
+    num = num.min(limit);
+
+    // 无香炉但副本进行中：至少跑一轮将其结束，避免卡住其他副本
+    if num == 0 && copy.status == "2" {
+        num = 1;
+    }
+
+    for _ in 0..num {
+        let Some(mut data) = 开启副本(d, &copy.id).await else {
+            return;
+        };
+
+        loop {
+            // 战败
+            if data.win == "1" {
+                结束回忆(d, &copy.id).await;
+                return;
+            }
+
+            let cur_days: u32 = match data.cur_days.parse() {
+                Ok(v) => v,
+                Err(e) => {
+                    d.log(TASK, &format!("解析 {} cur_days 字段失败：{e}", copy.name));
+                    return;
+                }
+            };
+
+            let max_days: u32 = match data.max_days.parse() {
+                Ok(v) => v,
+                Err(e) => {
+                    d.log(TASK, &format!("解析 {} max_days 字段失败：{e}", copy.name));
+                    return;
+                }
+            };
+
+            if cur_days > max_days {
+                if !结束回忆(d, &copy.id).await {
+                    return;
+                }
+                break;
+            }
+
+            if data.choose == "1" || cur_days == 0 {
+                data = match 进入下一天(d).await {
+                    Some(v) => v,
+                    None => return,
+                };
+                continue;
+            }
+
+            let v = match kind {
+                副本::柒承 => 柒承事件(d, &data).await,
+                副本::倚天 => 倚天事件(d, &data, cur_days).await,
+            };
+            if let Some(v) = v {
+                data = v;
+                continue;
+            }
+
+            if let Some(id) = 商店(&data) {
+                let Some(v) = 选择事件(d, id).await else {
+                    return;
+                };
+                data = v;
+                continue;
+            }
+
+            return;
+        }
+    }
+}
+
 #[derive(Deserialize)]
 struct BeiBao {
     result: String,
@@ -120,216 +211,43 @@ async fn get_item_num(d: &DaLeDou, name: &str) -> Option<u32> {
     Some(num)
 }
 
-async fn 柒承的忙碌日常(d: &DaLeDou, copy: &CopyList) {
-    let limit = d.config().江湖长梦.limit(&copy.name);
-    if limit == 0 {
-        return;
+async fn 柒承事件(d: &DaLeDou, data: &Begin) -> Option<Begin> {
+    if let Some(v) = 处理战斗(d, data).await {
+        return Some(v);
     }
 
-    let Some(mut num) = get_item_num(d, &copy.use_desc).await else {
-        return;
-    };
-
-    // 执行次数不超过配置上限
-    num = num.min(limit);
-
-    // 无香炉但副本进行中：至少跑一轮将其结束，避免卡住其他副本
-    if num == 0 && copy.status == "2" {
-        num = 1;
-    }
-
-    for _ in 0..num {
-        let Some(mut data) = 开启副本(d, &copy.id).await else {
-            return;
-        };
-
-        loop {
-            // 战败
-            if data.win == "1" {
-                结束回忆(d, &copy.id).await;
-                return;
-            }
-
-            let cur_days: u32 = match data.cur_days.parse() {
-                Ok(v) => v,
-                Err(e) => {
-                    d.log(TASK, &format!("解析 {} cur_days 字段失败：{e}", copy.name));
-                    return;
-                }
-            };
-
-            let max_days: u32 = match data.max_days.parse() {
-                Ok(v) => v,
-                Err(e) => {
-                    d.log(TASK, &format!("解析 {} max_days 字段失败：{e}", copy.name));
-                    return;
-                }
-            };
-
-            if cur_days > max_days {
-                if !结束回忆(d, &copy.id).await {
-                    return;
-                }
-                break;
-            }
-
-            if data.choose == "1" || cur_days == 0 {
-                data = match 进入下一天(d).await {
-                    Some(v) => v,
-                    None => return,
-                };
-                continue;
-            }
-
-            if let Some(id) = 战斗(&data) {
-                let Some(v) = 选择事件(d, id).await else {
-                    return;
-                };
-                data = v;
-                continue;
-            }
-
-            if let Some(id) = 奇遇(&data) {
-                let Some(_) = 选择事件(d, id).await else {
-                    return;
-                };
-                // 视而不见
-                let Some(v) = 奇遇选项(d, "2").await else {
-                    return;
-                };
-                data = v;
-                continue;
-            }
-
-            if let Some(id) = 商店(&data) {
-                let Some(v) = 选择事件(d, id).await else {
-                    return;
-                };
-                data = v;
-                continue;
-            }
-
-            return;
-        }
-    }
+    // 视而不见
+    处理奇遇(d, data, "2").await
 }
 
-async fn 倚天屠龙归我心(d: &DaLeDou, copy: &CopyList) {
-    let limit = d.config().江湖长梦.limit(&copy.name);
-    if limit == 0 {
-        return;
+async fn 倚天事件(d: &DaLeDou, data: &Begin, cur_days: u32) -> Option<Begin> {
+    if cur_days == 1 || cur_days == 7 {
+        // 前辈、狠心离去
+        return 处理奇遇(d, data, "1").await;
     }
 
-    let Some(mut num) = get_item_num(d, &copy.use_desc).await else {
-        return;
-    };
-
-    // 执行次数不超过配置上限
-    num = num.min(limit);
-
-    // 无香炉但副本进行中：至少跑一轮将其结束，避免卡住其他副本
-    if num == 0 && copy.status == "2" {
-        num = 1;
+    if cur_days == 8 {
+        // 独自神伤
+        return 处理奇遇(d, data, "3").await;
     }
 
-    for _ in 0..num {
-        let Some(mut data) = 开启副本(d, &copy.id).await else {
-            return;
-        };
-
-        loop {
-            // 战败
-            if data.win == "1" {
-                结束回忆(d, &copy.id).await;
-                return;
-            }
-
-            let cur_days: u32 = match data.cur_days.parse() {
-                Ok(v) => v,
-                Err(e) => {
-                    d.log(TASK, &format!("解析 {} cur_days 字段失败：{e}", copy.name));
-                    return;
-                }
-            };
-
-            let max_days: u32 = match data.max_days.parse() {
-                Ok(v) => v,
-                Err(e) => {
-                    d.log(TASK, &format!("解析 {} max_days 字段失败：{e}", copy.name));
-                    return;
-                }
-            };
-
-            if cur_days > max_days {
-                if !结束回忆(d, &copy.id).await {
-                    return;
-                }
-                break;
-            }
-
-            if data.choose == "1" || cur_days == 0 {
-                data = match 进入下一天(d).await {
-                    Some(v) => v,
-                    None => return,
-                };
-                continue;
-            }
-
-            if cur_days == 1 || cur_days == 7 {
-                let Some(_) = 选择事件(d, 1).await else {
-                    return;
-                };
-                // 前辈、狠心离去
-                let Some(v) = 奇遇选项(d, "1").await else {
-                    return;
-                };
-                data = v;
-                continue;
-            }
-
-            if cur_days == 8 {
-                let Some(_) = 选择事件(d, 1).await else {
-                    return;
-                };
-                // 独自神伤
-                let Some(v) = 奇遇选项(d, "3").await else {
-                    return;
-                };
-                data = v;
-                continue;
-            }
-
-            if let Some(id) = 战斗(&data) {
-                let Some(v) = 选择事件(d, id).await else {
-                    return;
-                };
-                data = v;
-                continue;
-            }
-
-            if let Some(id) = 奇遇(&data) {
-                let Some(_) = 选择事件(d, id).await else {
-                    return;
-                };
-                // 开始回忆、回首掏
-                let Some(v) = 奇遇选项(d, "1").await else {
-                    return;
-                };
-                data = v;
-                continue;
-            }
-
-            if let Some(id) = 商店(&data) {
-                let Some(v) = 选择事件(d, id).await else {
-                    return;
-                };
-                data = v;
-                continue;
-            }
-
-            return;
-        }
+    if let Some(v) = 处理战斗(d, data).await {
+        return Some(v);
     }
+
+    // 开始回忆、回首掏
+    处理奇遇(d, data, "1").await
+}
+
+async fn 处理战斗(d: &DaLeDou, data: &Begin) -> Option<Begin> {
+    let id = 战斗(data)?;
+    选择事件(d, id).await
+}
+
+async fn 处理奇遇(d: &DaLeDou, data: &Begin, adventure_id: &str) -> Option<Begin> {
+    let id = 奇遇(data)?;
+    选择事件(d, id).await?;
+    奇遇选项(d, adventure_id).await
 }
 
 fn 战斗(data: &Begin) -> Option<u8> {
