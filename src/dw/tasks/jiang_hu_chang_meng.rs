@@ -33,6 +33,7 @@ pub async fn run(d: &DaLeDou) {
 
         match item.name.as_str() {
             "柒承的忙碌日常" => 柒承的忙碌日常(d, item).await,
+            "倚天屠龙归我心" => 倚天屠龙归我心(d, item).await,
             _ => continue,
         }
     }
@@ -121,7 +122,6 @@ async fn get_item_num(d: &DaLeDou, name: &str) -> Option<u32> {
 
 async fn 柒承的忙碌日常(d: &DaLeDou, copy: &CopyList) {
     let limit = d.config().江湖长梦.limit(&copy.name);
-    // 配置上限为 0 表示不执行
     if limit == 0 {
         return;
     }
@@ -181,72 +181,188 @@ async fn 柒承的忙碌日常(d: &DaLeDou, copy: &CopyList) {
                 continue;
             }
 
-            // 按事件优先级处理：战斗 > 奇遇 > 商店
-            data = match pick_best_event(&data) {
-                Some(BestEvent::战斗等级1(id)) => {
-                    let Some(v) = 选择事件(d, id).await else {
-                        return;
-                    };
-                    v
+            if let Some(id) = 战斗(&data) {
+                let Some(v) = 选择事件(d, id).await else {
+                    return;
+                };
+                data = v;
+                continue;
+            }
+
+            if let Some(id) = 奇遇(&data) {
+                let Some(_) = 选择事件(d, id).await else {
+                    return;
+                };
+                // 视而不见
+                let Some(v) = 奇遇选项(d, "2").await else {
+                    return;
+                };
+                data = v;
+                continue;
+            }
+
+            if let Some(id) = 商店(&data) {
+                let Some(v) = 选择事件(d, id).await else {
+                    return;
+                };
+                data = v;
+                continue;
+            }
+
+            return;
+        }
+    }
+}
+
+async fn 倚天屠龙归我心(d: &DaLeDou, copy: &CopyList) {
+    let limit = d.config().江湖长梦.limit(&copy.name);
+    if limit == 0 {
+        return;
+    }
+
+    let Some(mut num) = get_item_num(d, &copy.use_desc).await else {
+        return;
+    };
+
+    // 执行次数不超过配置上限
+    num = num.min(limit);
+
+    // 无香炉但副本进行中：至少跑一轮将其结束，避免卡住其他副本
+    if num == 0 && copy.status == "2" {
+        num = 1;
+    }
+
+    for _ in 0..num {
+        let Some(mut data) = 开启副本(d, &copy.id).await else {
+            return;
+        };
+
+        loop {
+            // 战败
+            if data.win == "1" {
+                结束回忆(d, &copy.id).await;
+                return;
+            }
+
+            let cur_days: u32 = match data.cur_days.parse() {
+                Ok(v) => v,
+                Err(e) => {
+                    d.log(TASK, &format!("解析 {} cur_days 字段失败：{e}", copy.name));
+                    return;
                 }
-                Some(BestEvent::奇遇等级1(id)) => {
-                    let Some(v) = 奇遇事件(d, id).await else {
-                        return;
-                    };
-                    v
-                }
-                Some(BestEvent::商店(id)) => {
-                    let Some(v) = 选择事件(d, id).await else {
-                        return;
-                    };
-                    v
-                }
-                None => break,
             };
+
+            let max_days: u32 = match data.max_days.parse() {
+                Ok(v) => v,
+                Err(e) => {
+                    d.log(TASK, &format!("解析 {} max_days 字段失败：{e}", copy.name));
+                    return;
+                }
+            };
+
+            if cur_days > max_days {
+                if !结束回忆(d, &copy.id).await {
+                    return;
+                }
+                break;
+            }
+
+            if data.choose == "1" || cur_days == 0 {
+                data = match 进入下一天(d).await {
+                    Some(v) => v,
+                    None => return,
+                };
+                continue;
+            }
+
+            if cur_days == 1 || cur_days == 7 {
+                let Some(_) = 选择事件(d, 1).await else {
+                    return;
+                };
+                // 前辈、狠心离去
+                let Some(v) = 奇遇选项(d, "1").await else {
+                    return;
+                };
+                data = v;
+                continue;
+            }
+
+            if cur_days == 8 {
+                let Some(_) = 选择事件(d, 1).await else {
+                    return;
+                };
+                // 独自神伤
+                let Some(v) = 奇遇选项(d, "3").await else {
+                    return;
+                };
+                data = v;
+                continue;
+            }
+
+            if let Some(id) = 战斗(&data) {
+                let Some(v) = 选择事件(d, id).await else {
+                    return;
+                };
+                data = v;
+                continue;
+            }
+
+            if let Some(id) = 奇遇(&data) {
+                let Some(_) = 选择事件(d, id).await else {
+                    return;
+                };
+                // 开始回忆、回首掏
+                let Some(v) = 奇遇选项(d, "1").await else {
+                    return;
+                };
+                data = v;
+                continue;
+            }
+
+            if let Some(id) = 商店(&data) {
+                let Some(v) = 选择事件(d, id).await else {
+                    return;
+                };
+                data = v;
+                continue;
+            }
+
+            return;
         }
     }
 }
 
-/// 事件类型，按优先级降序排列
-#[derive(Clone, Copy)]
-enum BestEvent {
-    战斗等级1(u8),
-    奇遇等级1(u8),
-    商店(u8),
-}
-
-impl BestEvent {
-    /// 数值越大优先级越高
-    fn priority(self) -> u8 {
-        match self {
-            Self::战斗等级1(_) => 3,
-            Self::奇遇等级1(_) => 2,
-            Self::商店(_) => 1,
-        }
-    }
-}
-
-/// 扫描 event_list，按优先级返回最高优事件
-fn pick_best_event(data: &Begin) -> Option<BestEvent> {
-    let mut best: Option<BestEvent> = None;
-
+fn 战斗(data: &Begin) -> Option<u8> {
     for (i, item) in data.event_list.iter().enumerate() {
         let id = (i + 1) as u8;
-        let candidate = match item.t.as_str() {
-            "3" => Some(BestEvent::战斗等级1(id)),
-            "1" => Some(BestEvent::奇遇等级1(id)),
-            "2" => Some(BestEvent::商店(id)),
-            _ => None,
-        };
-        if let Some(c) = candidate {
-            best = match best {
-                Some(b) if b.priority() >= c.priority() => Some(b),
-                _ => Some(c),
-            };
+        if item.t == "3" {
+            return Some(id);
         }
     }
 
-    best
+    None
+}
+
+fn 奇遇(data: &Begin) -> Option<u8> {
+    for (i, item) in data.event_list.iter().enumerate() {
+        let id = (i + 1) as u8;
+        if item.t == "1" {
+            return Some(id);
+        }
+    }
+
+    None
+}
+
+fn 商店(data: &Begin) -> Option<u8> {
+    for (i, item) in data.event_list.iter().enumerate() {
+        let id = (i + 1) as u8;
+        if item.t == "2" {
+            return Some(id);
+        }
+    }
+
+    None
 }
 
 #[derive(Deserialize)]
@@ -351,12 +467,6 @@ async fn 奇遇选项(d: &DaLeDou, adventure_id: &str) -> Option<Begin> {
     Some(data)
 }
 
-async fn 奇遇事件(d: &DaLeDou, event_id: u8) -> Option<Begin> {
-    // 奇遇事件：选择事件 → 奇遇选项
-    let _ = 选择事件(d, event_id).await?;
-    奇遇选项(d, "2").await
-}
-
 async fn 结束回忆(d: &DaLeDou, id: &str) -> bool {
     // 结束回忆
     let data: Response = match d.get("cmd=jianghudream&op=endInstance").await {
@@ -389,17 +499,6 @@ async fn 领取首通奖励(d: &DaLeDou, id: &str) {
     };
 
     d.log(TASK, &data.msg);
-}
-
-/// 计算本次可兑换数量
-///
-/// `want` 用户配置的兑换上限，`max_num` 服务器最大兑换数量，
-/// `num` 已兑换数量，`score` 当前积分，`price` 单价
-fn calc_max_exchange(want: u32, max_num: u32, num: u32, score: u32, price: u32) -> u32 {
-    // 还需兑换 = min(配置上限, 服务器上限) - 已兑换，再受积分限制
-    let need = want.min(max_num).saturating_sub(num);
-    let affordable = score.checked_div(price).unwrap_or(0);
-    need.min(affordable)
 }
 
 async fn 兑换商店(d: &DaLeDou) {
@@ -511,6 +610,17 @@ async fn 兑换商店(d: &DaLeDou) {
             time::sleep(Duration::from_millis(200)).await;
         }
     }
+}
+
+/// 计算本次可兑换数量
+///
+/// `want` 用户配置的兑换上限，`max_num` 服务器最大兑换数量，
+/// `num` 已兑换数量，`score` 当前积分，`price` 单价
+fn calc_max_exchange(want: u32, max_num: u32, num: u32, score: u32, price: u32) -> u32 {
+    // 还需兑换 = min(配置上限, 服务器上限) - 已兑换，再受积分限制
+    let need = want.min(max_num).saturating_sub(num);
+    let affordable = score.checked_div(price).unwrap_or(0);
+    need.min(affordable)
 }
 
 async fn 兑换(d: &DaLeDou, id: &str, name: &str) {

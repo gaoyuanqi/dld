@@ -965,6 +965,8 @@ impl JiangHuChangMeng {
 pub struct ChangMengCopy {
     /// 执行次数上限，0~200
     pub 柒承的忙碌日常: u32,
+    /// 执行次数上限，0~200
+    pub 倚天屠龙归我心: u32,
 }
 
 impl ChangMengCopy {
@@ -972,12 +974,14 @@ impl ChangMengCopy {
     pub fn limit(&self, copy_name: &str) -> u32 {
         match copy_name {
             "柒承的忙碌日常" => self.柒承的忙碌日常,
+            "倚天屠龙归我心" => self.倚天屠龙归我心,
             _ => 0,
         }
     }
 
     fn validate(&self) -> Result<()> {
         validate_range!("江湖长梦.副本.柒承的忙碌日常", self.柒承的忙碌日常, 0, 200);
+        validate_range!("江湖长梦.副本.倚天屠龙归我心", self.倚天屠龙归我心, 0, 200);
         Ok(())
     }
 }
@@ -1628,9 +1632,11 @@ mod tests {
     #[test]
     fn test_chang_meng_copy_limit() {
         let copy = ChangMengCopy {
-            柒承的忙碌日常: 3
+            柒承的忙碌日常: 3,
+            倚天屠龙归我心: 4,
         };
         assert_eq!(copy.limit("柒承的忙碌日常"), 3);
+        assert_eq!(copy.limit("倚天屠龙归我心"), 4);
         assert_eq!(copy.limit("未知副本"), 0);
     }
 
@@ -1638,6 +1644,7 @@ mod tests {
     #[test]
     fn test_account_config_load_chang_meng_copy_out_of_range() {
         assert!(load_account(r#"{"江湖长梦": {"副本": {"柒承的忙碌日常": 201}}}"#).is_err());
+        assert!(load_account(r#"{"江湖长梦": {"副本": {"倚天屠龙归我心": 201}}}"#).is_err());
     }
 
     // 江湖长梦副本执行次数边界值合法
