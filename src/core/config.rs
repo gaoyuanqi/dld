@@ -1202,26 +1202,16 @@ mod tests {
         AccountConfig::load(&path)
     }
 
-    // 默认值正确
+    // 默认值与空配置加载结果一致
     #[test]
-    fn test_global_config_default() {
-        let config = GlobalConfig::default();
-        assert_eq!(config.运行时.并发数, 5);
-        assert_eq!(config.运行时.日志保留天数, 30);
-        assert_eq!(config.兑换码.code, "161616");
-        assert_eq!(config.时空遗迹.八卦迷阵.第一层, BaGua::震);
-        assert_eq!(config.时空遗迹.八卦迷阵.ids(), [7, 8, 2, 1]);
-    }
-
-    // 部分字段缺失时用默认值补齐
-    #[test]
-    fn test_load_partial_file_fills_defaults() {
-        let config = load_global(r#"{}"#).unwrap();
-        assert_eq!(config.运行时.并发数, 5);
-        assert_eq!(config.运行时.日志保留天数, 30);
-        assert_eq!(config.兑换码.code, "161616");
-        assert_eq!(config.时空遗迹.八卦迷阵.第一层, BaGua::震);
-        assert_eq!(config.时空遗迹.八卦迷阵.ids(), [7, 8, 2, 1]);
+    fn test_global_config_default_and_partial_load() {
+        for config in [GlobalConfig::default(), load_global(r#"{}"#).unwrap()] {
+            assert_eq!(config.运行时.并发数, 5);
+            assert_eq!(config.运行时.日志保留天数, 30);
+            assert_eq!(config.兑换码.code, "161616");
+            assert_eq!(config.时空遗迹.八卦迷阵.第一层, BaGua::震);
+            assert_eq!(config.时空遗迹.八卦迷阵.ids(), [7, 8, 2, 1]);
+        }
     }
 
     // 子对象存在但内部为空，用默认值补齐
@@ -1390,15 +1380,10 @@ mod tests {
         assert_eq!(config.运行时.日志保留天数, 90);
     }
 
-    // 并发数超上限报错
+    // 运行时超上限报错
     #[test]
-    fn test_global_config_load_validate_concurrency_out_of_range() {
+    fn test_global_config_load_validate_out_of_range() {
         assert!(load_global(r#"{"运行时": {"并发数": 21}}"#).is_err());
-    }
-
-    // 日志保留天数超上限报错
-    #[test]
-    fn test_global_config_load_validate_retention_out_of_range() {
         assert!(load_global(r#"{"运行时": {"日志保留天数": 91}}"#).is_err());
     }
 
@@ -1502,15 +1487,10 @@ mod tests {
         assert_eq!(config.梦想之旅.最多消耗梦幻机票数量, 9);
     }
 
-    // 掠夺目标战力超上限报错
+    // 掠夺超上限报错
     #[test]
-    fn test_account_config_load_lue_duo_target_out_of_range() {
+    fn test_account_config_load_lue_duo_out_of_range() {
         assert!(load_account(r#"{"掠夺": {"目标战力": 100000}}"#).is_err());
-    }
-
-    // 掠夺战力增量超上限报错
-    #[test]
-    fn test_account_config_load_lue_duo_increment_out_of_range() {
         assert!(load_account(r#"{"掠夺": {"战力增量": 10000}}"#).is_err());
     }
 
@@ -1536,27 +1516,12 @@ mod tests {
         assert_eq!(config.会武.兑换真黄金卷轴数量, 100);
     }
 
-    // 龙凰之境凰髓超上限报错
+    // 龙凰之境兑换上限超上限报错
     #[test]
-    fn test_account_config_load_long_huang_huang_sui_out_of_range() {
+    fn test_account_config_load_long_huang_out_of_range() {
         assert!(load_account(r#"{"龙凰之境": {"兑换上限": {"凰髓": 101}}}"#).is_err());
-    }
-
-    // 龙凰之境凰火超上限报错
-    #[test]
-    fn test_account_config_load_long_huang_huang_huo_out_of_range() {
         assert!(load_account(r#"{"龙凰之境": {"兑换上限": {"凰火": 17}}}"#).is_err());
-    }
-
-    // 龙凰之境龙玉超上限报错
-    #[test]
-    fn test_account_config_load_long_huang_long_yu_out_of_range() {
         assert!(load_account(r#"{"龙凰之境": {"兑换上限": {"龙玉": 101}}}"#).is_err());
-    }
-
-    // 龙凰之境论武券超上限报错
-    #[test]
-    fn test_account_config_load_long_huang_lun_wu_quan_out_of_range() {
         assert!(load_account(r#"{"龙凰之境": {"兑换上限": {"论武券": 41}}}"#).is_err());
     }
 
@@ -1572,45 +1537,15 @@ mod tests {
         assert_eq!(config.龙凰之境.兑换上限.论武券, 40);
     }
 
-    // 江湖长梦玄铁令超上限报错
+    // 江湖长梦兑换上限超上限报错
     #[test]
-    fn test_account_config_load_chang_meng_xuan_tie_ling_out_of_range() {
+    fn test_account_config_load_chang_meng_out_of_range() {
         assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"玄铁令": 51}}}"#).is_err());
-    }
-
-    // 江湖长梦淬火结晶超上限报错
-    #[test]
-    fn test_account_config_load_chang_meng_cui_huo_jie_jing_out_of_range() {
         assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"淬火结晶": 51}}}"#).is_err());
-    }
-
-    // 江湖长梦石中剑超上限报错
-    #[test]
-    fn test_account_config_load_chang_meng_shi_zhong_jian_out_of_range() {
         assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"石中剑": 51}}}"#).is_err());
-    }
-
-    // 江湖长梦大型武器符咒超上限报错
-    #[test]
-    fn test_account_config_load_chang_meng_da_xing_wu_qi_fu_zhou_out_of_range() {
         assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"大型武器符咒": 51}}}"#).is_err());
-    }
-
-    // 江湖长梦中型武器符咒超上限报错
-    #[test]
-    fn test_account_config_load_chang_meng_zhong_xing_wu_qi_fu_zhou_out_of_range() {
         assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"中型武器符咒": 51}}}"#).is_err());
-    }
-
-    // 江湖长梦小型武器符咒超上限报错
-    #[test]
-    fn test_account_config_load_chang_meng_xiao_xing_wu_qi_fu_zhou_out_of_range() {
         assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"小型武器符咒": 51}}}"#).is_err());
-    }
-
-    // 江湖长梦投掷武器符咒超上限报错
-    #[test]
-    fn test_account_config_load_chang_meng_tou_zhi_wu_qi_fu_zhou_out_of_range() {
         assert!(load_account(r#"{"江湖长梦": {"兑换上限": {"投掷武器符咒": 51}}}"#).is_err());
     }
 
@@ -1787,31 +1722,72 @@ mod tests {
         assert_eq!(read_file(&path), json);
     }
 
+    // 构造历练乐斗顺序 JSON
+    fn li_lian_json(bosses: &[&str]) -> String {
+        let list = bosses
+            .iter()
+            .map(|b| format!("\"{b}\""))
+            .collect::<Vec<_>>()
+            .join(",");
+        format!("{{\"历练\": {{\"乐斗顺序\": [{list}]}}}}")
+    }
+
     // 历练 BOSS顺序 数量不足校验
     #[test]
     fn test_account_config_load_li_lian_too_few() {
-        assert!(load_account(r#"{"历练": {"乐斗顺序": ["凶尸-令狐冲"]}}"#).is_err());
+        assert!(load_account(&li_lian_json(&["凶尸-令狐冲"])).is_err());
     }
 
     // 历练 BOSS顺序 数量过多校验
     #[test]
     fn test_account_config_load_li_lian_too_many() {
-        let json = r#"{"历练": {"乐斗顺序": ["凶尸-令狐冲","虾兵头目-丁春秋","夜叉元帅-丘处机","霹雳头领-小龙女","宋姜-韦小宝","大鹏-扫地僧","马大王-鹤笔翁","嗜血鬼王-韦一笑","象仙-赵敏","象仙-赵敏"]}}"#;
-        assert!(load_account(json).is_err());
+        let bosses = [
+            "凶尸-令狐冲",
+            "虾兵头目-丁春秋",
+            "夜叉元帅-丘处机",
+            "霹雳头领-小龙女",
+            "宋姜-韦小宝",
+            "大鹏-扫地僧",
+            "马大王-鹤笔翁",
+            "嗜血鬼王-韦一笑",
+            "象仙-赵敏",
+            "象仙-赵敏",
+        ];
+        assert!(load_account(&li_lian_json(&bosses)).is_err());
     }
 
     // 历练 BOSS顺序 重复校验
     #[test]
     fn test_account_config_load_li_lian_duplicate() {
-        let json = r#"{"历练": {"乐斗顺序": ["凶尸-令狐冲","虾兵头目-丁春秋","夜叉元帅-丘处机","霹雳头领-小龙女","宋姜-韦小宝","大鹏-扫地僧","马大王-鹤笔翁","嗜血鬼王-韦一笑","嗜血鬼王-韦一笑"]}}"#;
-        assert!(load_account(json).is_err());
+        let bosses = [
+            "凶尸-令狐冲",
+            "虾兵头目-丁春秋",
+            "夜叉元帅-丘处机",
+            "霹雳头领-小龙女",
+            "宋姜-韦小宝",
+            "大鹏-扫地僧",
+            "马大王-鹤笔翁",
+            "嗜血鬼王-韦一笑",
+            "嗜血鬼王-韦一笑",
+        ];
+        assert!(load_account(&li_lian_json(&bosses)).is_err());
     }
 
     // 历练 BOSS顺序 合法自定义配置
     #[test]
     fn test_account_config_load_li_lian_custom() {
-        let json = r#"{"历练": {"乐斗顺序": ["象仙-赵敏","凶尸-令狐冲","虾兵头目-丁春秋","夜叉元帅-丘处机","霹雳头领-小龙女","宋姜-韦小宝","大鹏-扫地僧","马大王-鹤笔翁","嗜血鬼王-韦一笑"]}}"#;
-        let config = load_account(json).unwrap();
+        let bosses = [
+            "象仙-赵敏",
+            "凶尸-令狐冲",
+            "虾兵头目-丁春秋",
+            "夜叉元帅-丘处机",
+            "霹雳头领-小龙女",
+            "宋姜-韦小宝",
+            "大鹏-扫地僧",
+            "马大王-鹤笔翁",
+            "嗜血鬼王-韦一笑",
+        ];
+        let config = load_account(&li_lian_json(&bosses)).unwrap();
         assert_eq!(config.历练.乐斗顺序[0], LiLianBoss::XiangXian);
         assert_eq!(config.历练.乐斗顺序[1], LiLianBoss::XiongShi);
         assert_eq!(config.历练.乐斗顺序.len(), 9);
@@ -1820,8 +1796,18 @@ mod tests {
     // 历练 BOSS顺序 无效枚举值应报错
     #[test]
     fn test_account_config_load_li_lian_invalid_boss() {
-        let json = r#"{"历练": {"乐斗顺序": ["凶尸-令狐冲","虾兵头目-丁春秋","夜叉元帅-丘处机","霹雳头领-小龙女","宋姜-韦小宝","大鹏-扫地僧","马大王-鹤笔翁","嗜血鬼王-韦一笑","不存在-BOSS"]}}"#;
-        assert!(load_account(json).is_err());
+        let bosses = [
+            "凶尸-令狐冲",
+            "虾兵头目-丁春秋",
+            "夜叉元帅-丘处机",
+            "霹雳头领-小龙女",
+            "宋姜-韦小宝",
+            "大鹏-扫地僧",
+            "马大王-鹤笔翁",
+            "嗜血鬼王-韦一笑",
+            "不存在-BOSS",
+        ];
+        assert!(load_account(&li_lian_json(&bosses)).is_err());
     }
 
     // ─── WoDeBangPai validate 测试 ───
@@ -1897,15 +1883,10 @@ mod tests {
         assert!(load_account(&json).is_err());
     }
 
-    // 门派邀请赛炼气石兑换上限超限报错
+    // 门派邀请赛兑换上限超限报错
     #[test]
-    fn test_account_config_load_men_pai_lian_qi_shi_out_of_range() {
+    fn test_account_config_load_men_pai_out_of_range() {
         assert!(load_account(r#"{"门派邀请赛": {"兑换": {"炼气石": 21}}}"#).is_err());
-    }
-
-    // 门派邀请赛门派强化书兑换上限超限报错
-    #[test]
-    fn test_account_config_load_men_pai_men_pai_qiang_hua_shu_out_of_range() {
         assert!(load_account(r#"{"门派邀请赛": {"兑换": {"门派强化书": 21}}}"#).is_err());
     }
 
@@ -1947,29 +1928,17 @@ mod tests {
         assert_eq!(ids, vec![4, 2, 5, 1]);
     }
 
+    // 非法输入返回 None
     #[test]
-    fn test_chars_to_ids_too_short() {
+    fn test_chars_to_ids_invalid() {
         let bagua = BaGuaMiZhen::default();
+        // 不足 4 个
         assert!(bagua.chars_to_ids("乾坤").is_none());
-    }
-
-    #[test]
-    fn test_chars_to_ids_too_many() {
-        let bagua = BaGuaMiZhen::default();
-        // 有效卦象超过 4 个也返回 None
+        // 有效卦象超过 4 个
         assert!(bagua.chars_to_ids("乾坤坎离震").is_none());
-    }
-
-    #[test]
-    fn test_chars_to_ids_invalid_chars_mixed() {
-        let bagua = BaGuaMiZhen::default();
-        // 包含非法字符，有效卦象不足 4 个
+        // 包含非法字符
         assert!(bagua.chars_to_ids("ab乾坤").is_none());
-    }
-
-    #[test]
-    fn test_chars_to_ids_empty() {
-        let bagua = BaGuaMiZhen::default();
+        // 空字符串
         assert!(bagua.chars_to_ids("").is_none());
     }
 
