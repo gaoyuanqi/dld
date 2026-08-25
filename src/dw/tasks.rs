@@ -4,6 +4,7 @@ mod bei_bao;
 mod biao_xing_tian_xia;
 mod cai_dan_shuang;
 mod da_xia_hui_gui;
+mod deng_lu_shang_dian;
 mod deng_lu_you_li;
 mod dian_feng_zhi_zhan;
 mod dou_jing_tan_mi;
@@ -147,6 +148,7 @@ pub enum Task {
     乐斗菜单,
     幸运转盘,
     大侠回归,
+    登录商店,
 }
 
 impl Task {
@@ -225,6 +227,7 @@ impl Task {
             Task::乐斗菜单,
             Task::幸运转盘,
             Task::大侠回归,
+            Task::登录商店,
         ]
     }
 }
@@ -304,5 +307,6 @@ pub async fn run_task(d: &DaLeDou, name: &Task) {
         Task::乐斗菜单 => le_dou_cai_dan::run(d).await,
         Task::幸运转盘 => xing_yun_zhuan_pan::run(d).await,
         Task::大侠回归 => da_xia_hui_gui::run(d).await,
+        Task::登录商店 => deng_lu_shang_dian::run(d).await,
     }
 }
