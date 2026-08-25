@@ -34,6 +34,7 @@ pub async fn run(d: &DaLeDou) {
         match item.name.as_str() {
             "柒承的忙碌日常" => 跑副本(d, item, 副本::柒承).await,
             "倚天屠龙归我心" => 跑副本(d, item, 副本::倚天).await,
+            "绝世秘籍之争" => 跑副本(d, item, 副本::绝世).await,
             _ => continue,
         }
     }
@@ -84,6 +85,7 @@ async fn query(d: &DaLeDou) -> Option<Query> {
 enum 副本 {
     柒承,
     倚天,
+    绝世,
 }
 
 /// 副本主流程：处理香炉、胜负、天数推进，事件选择交给 `kind` 对应的事件处理函数
@@ -151,6 +153,7 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
             let v = match kind {
                 副本::柒承 => 柒承事件(d, &data).await,
                 副本::倚天 => 倚天事件(d, &data, cur_days).await,
+                副本::绝世 => 绝世事件(d, &data, cur_days).await,
             };
             if let Some(v) = v {
                 data = v;
@@ -237,6 +240,26 @@ async fn 倚天事件(d: &DaLeDou, data: &Begin, cur_days: u32) -> Option<Begin>
 
     // 开始回忆、回首掏
     处理奇遇(d, data, "1").await
+}
+
+async fn 绝世事件(d: &DaLeDou, data: &Begin, cur_days: u32) -> Option<Begin> {
+    if cur_days == 1 {
+        // 携手合作
+        return 处理奇遇(d, data, "1").await;
+    }
+
+    // 只有奇遇事件，没有奇遇选项
+    if cur_days == 3 {
+        let id = 奇遇(data)?;
+        return 选择事件(d, id).await;
+    }
+
+    if cur_days == 6 {
+        // 武学秘籍
+        return 处理奇遇(d, data, "1").await;
+    }
+
+    处理战斗(d, data).await
 }
 
 async fn 处理战斗(d: &DaLeDou, data: &Begin) -> Option<Begin> {
