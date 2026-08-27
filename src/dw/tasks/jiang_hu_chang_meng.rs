@@ -1,6 +1,6 @@
 //! 江湖长梦
 //!
-//! 副本优先战斗，战败则结束回忆
+//! 副本优先金币，战败则结束回忆
 //!
 //! 周四兑换
 
@@ -214,6 +214,7 @@ async fn get_item_num(d: &DaLeDou, name: &str) -> Option<u32> {
     Some(num)
 }
 
+/// 最多550金币
 async fn 柒承事件(d: &DaLeDou, data: &Begin) -> Option<Begin> {
     if let Some(v) = 处理战斗(d, data).await {
         return Some(v);
@@ -223,6 +224,7 @@ async fn 柒承事件(d: &DaLeDou, data: &Begin) -> Option<Begin> {
     处理奇遇(d, data, "2").await
 }
 
+/// 最多558金币
 async fn 倚天事件(d: &DaLeDou, data: &Begin, cur_days: u32) -> Option<Begin> {
     if cur_days == 1 || cur_days == 7 {
         // 前辈、狠心离去
@@ -242,9 +244,10 @@ async fn 倚天事件(d: &DaLeDou, data: &Begin, cur_days: u32) -> Option<Begin>
     处理奇遇(d, data, "1").await
 }
 
+/// 最多490金币
 async fn 绝世事件(d: &DaLeDou, data: &Begin, cur_days: u32) -> Option<Begin> {
-    if cur_days == 1 {
-        // 携手合作
+    if cur_days == 1 || cur_days == 6 {
+        // 携手合作、金银财宝
         return 处理奇遇(d, data, "1").await;
     }
 
@@ -254,9 +257,11 @@ async fn 绝世事件(d: &DaLeDou, data: &Begin, cur_days: u32) -> Option<Begin>
         return 选择事件(d, id).await;
     }
 
-    if cur_days == 6 {
-        // 武学秘籍
-        return 处理奇遇(d, data, "1").await;
+    if cur_days == 4 {
+        // 尝试交谈
+        处理奇遇(d, data, "2").await?;
+        // 借机休息
+        return 处理奇遇(d, data, "2").await;
     }
 
     处理战斗(d, data).await
@@ -273,15 +278,41 @@ async fn 处理奇遇(d: &DaLeDou, data: &Begin, adventure_id: &str) -> Option<B
     奇遇选项(d, adventure_id).await
 }
 
+/// 优先金币最多的战斗，无金币数字时回退首个任意战斗
 fn 战斗(data: &Begin) -> Option<u8> {
+    let mut best = None;
+    let mut fallback = None;
     for (i, item) in data.event_list.iter().enumerate() {
+        if item.t != "3" {
+            continue;
+        }
         let id = (i + 1) as u8;
-        if item.t == "3" {
-            return Some(id);
+        if fallback.is_none() {
+            fallback = Some(id);
+        }
+        // 金币相同取先出现的
+        if let Some(n) = 金币数(&item.info)
+            && best.is_none_or(|(_, b)| n > b)
+        {
+            best = Some((id, n));
         }
     }
 
-    None
+    best.map(|(id, _)| id).or(fallback)
+}
+
+/// 提取 info 中「金币：」后数字的最大值，无则返回 None
+fn 金币数(info: &str) -> Option<u32> {
+    let mut max: Option<u32> = None;
+    for part in info.split("金币：").skip(1) {
+        let digits: String = part.chars().take_while(|c| c.is_ascii_digit()).collect();
+        let Ok(n) = digits.parse::<u32>() else {
+            continue;
+        };
+        max = Some(max.map_or(n, |m| m.max(n)));
+    }
+
+    max
 }
 
 fn 奇遇(data: &Begin) -> Option<u8> {
@@ -326,6 +357,8 @@ struct Begin {
 struct EventList {
     #[serde(rename = "type")]
     t: String, // 事件类型
+    #[serde(default)]
+    info: String, // 只有战斗事件才有该字段
 }
 
 async fn 开启副本(d: &DaLeDou, id: &str) -> Option<Begin> {
@@ -580,7 +613,29 @@ async fn 兑换(d: &DaLeDou, id: &str, name: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::calc_max_exchange;
+    use super::{Begin, EventList, calc_max_exchange, 战斗, 金币数};
+
+    /// 构造事件：t 为类型，info 为描述
+    fn event(t: &str, info: &str) -> EventList {
+        EventList {
+            t: t.to_string(),
+            info: info.to_string(),
+        }
+    }
+
+    /// 构造 Begin，仅 event_list 有意义
+    fn begin(events: Vec<EventList>) -> Begin {
+        Begin {
+            result: String::new(),
+            msg: String::new(),
+            win: String::new(),
+            choose: String::new(),
+            cur_days: String::new(),
+            max_days: String::new(),
+            event_desc: String::new(),
+            event_list: events,
+        }
+    }
 
     // 正常兑换：还需 40 个，积分可换 100 个，取 40
     #[test]
@@ -616,5 +671,78 @@ mod tests {
     #[test]
     fn test_calc_max_exchange_num_exceeds_max() {
         assert_eq!(calc_max_exchange(50, 50, 60, 10000, 100), 0);
+    }
+
+    // 金币多的战斗排在后面，优先返回金币最多的
+    #[test]
+    fn test_battle_prefers_most_coins() {
+        let data = begin(vec![
+            event("1", ""), // 奇遇
+            event("3", "第1战：市井混混 金币：60\n等级：20"),
+            event("3", "第1战：市井混混 金币：80\n等级：30"),
+        ]);
+        assert_eq!(战斗(&data), Some(3));
+    }
+
+    // 所有战斗 info 均无金币数字，回退首个任意战斗
+    #[test]
+    fn test_battle_falls_back_to_any() {
+        let data = begin(vec![
+            event("1", ""),
+            event("3", "普通战斗"),
+            event("3", "普通战斗二"),
+        ]);
+        assert_eq!(战斗(&data), Some(2));
+    }
+
+    // 无战斗事件返回 None
+    #[test]
+    fn test_battle_none() {
+        let data = begin(vec![event("1", "金币"), event("2", "")]);
+        assert_eq!(战斗(&data), None);
+    }
+
+    // 非战斗事件 info 含金币不算战斗
+    #[test]
+    fn test_battle_only_matches_battle_type() {
+        let data = begin(vec![
+            event("1", "第1战：市井混混 金币：99"),
+            event("3", "第1战：市井混混 金币：60"),
+        ]);
+        assert_eq!(战斗(&data), Some(2));
+    }
+
+    // 同一 info 内多场战斗金币不同，取最大值
+    #[test]
+    fn test_battle_max_coins_within_info() {
+        let data = begin(vec![event(
+            "3",
+            "第1战：市井混混 金币：60\n第2战：市井混混 金币：80",
+        )]);
+        assert_eq!(战斗(&data), Some(1));
+    }
+
+    // 提取单段金币数值
+    #[test]
+    fn test_coins_single() {
+        assert_eq!(金币数("第1战：市井混混 金币：60\n等级：20"), Some(60));
+    }
+
+    // 多段金币取最大
+    #[test]
+    fn test_coins_max() {
+        assert_eq!(金币数("第1战：金币：60\n第2战：金币：80"), Some(80));
+    }
+
+    // 无金币返回 None
+    #[test]
+    fn test_coins_none() {
+        assert_eq!(金币数("普通战斗"), None);
+    }
+
+    // 金币后无数字返回 None
+    #[test]
+    fn test_coins_no_number() {
+        assert_eq!(金币数("金币："), None);
     }
 }
