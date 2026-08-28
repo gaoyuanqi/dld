@@ -395,8 +395,6 @@ async fn 联合征伐(d: &DaLeDou) {
         dailyharm: String, // 当天伤害
     }
 
-    time::sleep(Duration::from_millis(200)).await;
-
     // 联合征伐
     let data: ShowUnion = match d.get("cmd=spacerelic&op=showunion").await {
         Ok(v) => v,
@@ -416,7 +414,7 @@ async fn 联合征伐(d: &DaLeDou) {
     };
 
     if selfinfo.dailyharm == "0" {
-        time::sleep(Duration::from_millis(200)).await;
+        time::sleep(Duration::from_millis(800)).await;
         征伐挑战(d).await;
     }
 }
