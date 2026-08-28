@@ -13,6 +13,7 @@ mod fei_sheng;
 mod fen_xiang;
 mod hao_jie_bao_xiang;
 mod hao_li_ti_sheng;
+mod hao_xia_chu_shi;
 mod hua_juan_mi_zong;
 mod hua_shan_lun_jian;
 mod huan_jing;
@@ -149,6 +150,7 @@ pub enum Task {
     幸运转盘,
     大侠回归,
     登录商店,
+    豪侠出世,
 }
 
 impl Task {
@@ -228,6 +230,7 @@ impl Task {
             Task::幸运转盘,
             Task::大侠回归,
             Task::登录商店,
+            Task::豪侠出世,
         ]
     }
 }
@@ -308,5 +311,6 @@ pub async fn run_task(d: &DaLeDou, name: &Task) {
         Task::幸运转盘 => xing_yun_zhuan_pan::run(d).await,
         Task::大侠回归 => da_xia_hui_gui::run(d).await,
         Task::登录商店 => deng_lu_shang_dian::run(d).await,
+        Task::豪侠出世 => hao_xia_chu_shi::run(d).await,
     }
 }
