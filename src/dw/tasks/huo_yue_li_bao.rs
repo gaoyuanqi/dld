@@ -58,10 +58,10 @@ async fn 领取(d: &DaLeDou, op: &str) {
         }
     };
 
-    // {"result":"-2","msg":"当前不在活动时间!","isGetLow":"0","isGetHigh":"0"}
+    // {"result":"-2","msg":"不在活动时间","isGetLow":"0","isGetHigh":"0"}
     // {"result":"-2","msg":"您活跃度不足50点！","isGetLow":"0","isGetHigh":"0"}
     // {"result":"-2","msg":"您今天已抽取该奖励!","isGetLow":"1","isGetHigh":"0"}
-    if !data.msg.starts_with("当") {
+    if !data.msg.starts_with("不在") {
         d.log(TASK, &data.msg);
     }
 }
