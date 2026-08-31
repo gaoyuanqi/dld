@@ -45,6 +45,11 @@ pub async fn run(d: &DaLeDou) {
         return;
     }
 
+    // 星期天
+    if Local::now().weekday() == chrono::Weekday::Sun {
+        帮战(d).await;
+    }
+
     帮派任务(d).await;
 }
 
@@ -109,28 +114,22 @@ async fn 帮派任务(d: &DaLeDou) {
         return;
     }
 
-    let mut is_first = false;
     for item in &data.array {
-        if item.state != "1" {
-            continue;
-        }
-
-        领取任务奖励(d, &item.id).await;
-        if item.name != "帮派供奉" {
-            is_first = true;
+        if item.state == "1" {
+            领取任务奖励(d, &item.id).await;
         }
     }
 
-    if !is_first {
+    // 任一非 “帮派供奉” 任务可领取
+    let has_other_task_completed = data
+        .array
+        .iter()
+        .any(|i| i.state == "1" && i.name != "帮派供奉");
+    if !has_other_task_completed {
         return;
     }
 
     帮派供奉(d).await;
-
-    // 星期天
-    if Local::now().weekday() == chrono::Weekday::Sun {
-        帮战(d).await;
-    }
 }
 
 async fn 查看(d: &DaLeDou, cmd: &str) {
