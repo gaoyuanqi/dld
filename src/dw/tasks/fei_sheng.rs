@@ -1,7 +1,7 @@
 //! 飞升大作战
 //!
-//! 报名：优先报名单排（积分商城兑换玄铁令*1），失败或者休赛期则报名匹配
-//! 领奖：休赛期领取排名和赛季奖励
+//! 报名：优先报名单排（积分商城兑换玄铁令*1），失败则报名匹配
+//! 领奖：领取排名和赛季奖励
 
 use serde::Deserialize;
 
@@ -21,9 +21,7 @@ pub async fn run(d: &DaLeDou) {
         result: String,
         msg: String,
         #[serde(default)]
-        cur_status: String, // 赛事状态
-        #[serde(default)]
-        sign_status: String, // 是否已报名报名
+        sign_status: String, // 是否已报名
     }
 
     let data: Query = match d.get("cmd=ascendheaven").await {
@@ -39,22 +37,12 @@ pub async fn run(d: &DaLeDou) {
         return;
     }
 
-    // 赛事进行中或者已报名
-    if data.cur_status == "2" || data.sign_status == "1" {
-        return;
-    }
-
-    // 报名期
-    if data.cur_status == "0" {
+    // 未报名
+    if data.sign_status == "0" {
         if !报名单排(d).await {
             报名匹配(d).await;
         }
-        return;
-    }
 
-    // 休赛期
-    if data.cur_status == "1" {
-        报名匹配(d).await;
         领取排名奖励(d).await;
         领取赛季奖励(d).await;
     }
@@ -74,6 +62,11 @@ async fn 报名单排(d: &DaLeDou) -> bool {
         d.log(TASK, &data.msg);
         if data.result == "0" {
             return true;
+        }
+
+        // {"result":"-1","msg":"当前为休赛期，无法报名排位比赛"}
+        if data.result == "-1" {
+            return false;
         }
 
         // 兑换玄铁令*1
