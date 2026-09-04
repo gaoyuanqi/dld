@@ -17,8 +17,10 @@
 //! 如果成功攻占一级资源点则放弃
 
 use std::cmp;
+use std::time::Duration;
 
 use serde::Deserialize;
+use tokio::time;
 
 use crate::dw::daledou::DaLeDou;
 
@@ -294,6 +296,7 @@ async fn 攻占(d: &DaLeDou, id: &str, region_id: &str) -> bool {
         return false;
     }
 
+    time::sleep(Duration::from_millis(100)).await;
     data.msg.contains("成功占领资源点")
 }
 
