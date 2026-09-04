@@ -27,8 +27,6 @@ pub async fn run(d: &DaLeDou) {
         #[serde(default)]
         fight_times: String,
         #[serde(default)]
-        reward_rank: String,
-        #[serde(default)]
         reward_message: String,
         #[serde(default)]
         current_dungeon_floor: String,
@@ -49,10 +47,7 @@ pub async fn run(d: &DaLeDou) {
             return;
         }
 
-        if data.reward_rank == "1" {
-            if !data.reward_message.is_empty() {
-                d.log(TASK, &data.reward_message);
-            }
+        if !data.reward_message.is_empty() {
             领取奖励(d).await;
             continue;
         }
