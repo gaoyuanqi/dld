@@ -41,6 +41,7 @@ mod mei_ri_jiang_li;
 mod men_pai;
 mod men_pai_yao_qing_sai;
 mod meng_xiang_zhi_lv;
+mod mi_ji_feng_yin;
 mod qi_hun_fu_mo;
 mod qiang_di_pan;
 mod quan_min_luan_dou;
@@ -151,6 +152,7 @@ pub enum Task {
     大侠回归,
     登录商店,
     豪侠出世,
+    秘籍封印,
 }
 
 impl Task {
@@ -231,6 +233,7 @@ impl Task {
             Task::大侠回归,
             Task::登录商店,
             Task::豪侠出世,
+            Task::秘籍封印,
         ]
     }
 }
@@ -312,5 +315,6 @@ pub async fn run_task(d: &DaLeDou, name: &Task) {
         Task::大侠回归 => da_xia_hui_gui::run(d).await,
         Task::登录商店 => deng_lu_shang_dian::run(d).await,
         Task::豪侠出世 => hao_xia_chu_shi::run(d).await,
+        Task::秘籍封印 => mi_ji_feng_yin::run(d).await,
     }
 }
