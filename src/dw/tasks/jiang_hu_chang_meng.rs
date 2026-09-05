@@ -35,6 +35,7 @@ pub async fn run(d: &DaLeDou) {
             "柒承的忙碌日常" => 跑副本(d, item, 副本::柒承).await,
             "倚天屠龙归我心" => 跑副本(d, item, 副本::倚天).await,
             "绝世秘籍之争" => 跑副本(d, item, 副本::绝世).await,
+            "桃花自古笑春风" => 跑副本(d, item, 副本::桃花).await,
             _ => continue,
         }
     }
@@ -86,6 +87,7 @@ enum 副本 {
     柒承,
     倚天,
     绝世,
+    桃花,
 }
 
 /// 副本主流程：处理香炉、胜负、天数推进，事件选择交给 `kind` 对应的事件处理函数
@@ -154,6 +156,7 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
                 副本::柒承 => 柒承事件(d, &data, &copy.name).await,
                 副本::倚天 => 倚天事件(d, &data, &copy.name, cur_days).await,
                 副本::绝世 => 绝世事件(d, &data, &copy.name, cur_days).await,
+                副本::桃花 => 桃花事件(d, &data, &copy.name, cur_days).await,
             };
             if let Some(v) = v {
                 data = v;
@@ -262,6 +265,25 @@ async fn 绝世事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32)
         处理奇遇(d, data, copy_name, "2").await?;
         // 借机休息
         return 处理奇遇(d, data, copy_name, "2").await;
+    }
+
+    处理战斗(d, data, copy_name).await
+}
+
+/// 最多520金币
+async fn 桃花事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32) -> Option<Begin> {
+    if cur_days == 5 {
+        // 嘴硬
+        return 处理奇遇(d, data, copy_name, "1").await;
+    }
+
+    if cur_days == 7 {
+        // 举起火把
+        处理奇遇(d, data, copy_name, "1").await?;
+        // 过两招
+        处理奇遇(d, data, copy_name, "1").await?;
+        // 切磋武艺
+        return 处理奇遇(d, data, copy_name, "1").await;
     }
 
     处理战斗(d, data, copy_name).await

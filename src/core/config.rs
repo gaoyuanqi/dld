@@ -970,6 +970,8 @@ pub struct ChangMengCopy {
     pub 倚天屠龙归我心: u32,
     /// 执行次数上限，0~200
     pub 绝世秘籍之争: u32,
+    /// 执行次数上限，0~200
+    pub 桃花自古笑春风: u32,
 }
 
 impl ChangMengCopy {
@@ -979,6 +981,7 @@ impl ChangMengCopy {
             "柒承的忙碌日常" => self.柒承的忙碌日常,
             "倚天屠龙归我心" => self.倚天屠龙归我心,
             "绝世秘籍之争" => self.绝世秘籍之争,
+            "桃花自古笑春风" => self.桃花自古笑春风,
             _ => 0,
         }
     }
@@ -987,6 +990,7 @@ impl ChangMengCopy {
         validate_range!("江湖长梦.副本.柒承的忙碌日常", self.柒承的忙碌日常, 0, 200);
         validate_range!("江湖长梦.副本.倚天屠龙归我心", self.倚天屠龙归我心, 0, 200);
         validate_range!("江湖长梦.副本.绝世秘籍之争", self.绝世秘籍之争, 0, 200);
+        validate_range!("江湖长梦.副本.桃花自古笑春风", self.桃花自古笑春风, 0, 200);
         Ok(())
     }
 }
@@ -1626,10 +1630,12 @@ mod tests {
             柒承的忙碌日常: 3,
             倚天屠龙归我心: 4,
             绝世秘籍之争: 5,
+            桃花自古笑春风: 6,
         };
         assert_eq!(copy.limit("柒承的忙碌日常"), 3);
         assert_eq!(copy.limit("倚天屠龙归我心"), 4);
         assert_eq!(copy.limit("绝世秘籍之争"), 5);
+        assert_eq!(copy.limit("桃花自古笑春风"), 6);
         assert_eq!(copy.limit("未知副本"), 0);
     }
 
@@ -1639,6 +1645,7 @@ mod tests {
         assert!(load_account(r#"{"江湖长梦": {"副本": {"柒承的忙碌日常": 201}}}"#).is_err());
         assert!(load_account(r#"{"江湖长梦": {"副本": {"倚天屠龙归我心": 201}}}"#).is_err());
         assert!(load_account(r#"{"江湖长梦": {"副本": {"绝世秘籍之争": 201}}}"#).is_err());
+        assert!(load_account(r#"{"江湖长梦": {"副本": {"桃花自古笑春风": 201}}}"#).is_err());
     }
 
     // 江湖长梦副本执行次数边界值合法
