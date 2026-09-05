@@ -219,39 +219,49 @@ async fn get_item_num(d: &DaLeDou, name: &str) -> Option<u32> {
 
 /// 最多550金币
 async fn 柒承事件(d: &DaLeDou, data: &Begin, copy_name: &str) -> Option<Begin> {
-    if let Some(v) = 处理战斗(d, data, copy_name).await {
-        return Some(v);
+    if let Some(id) = 战斗(data) {
+        return 选择事件(d, copy_name, id).await;
     }
 
+    let id = 奇遇(data)?;
+    选择事件(d, copy_name, id).await?;
     // 视而不见
-    处理奇遇(d, data, copy_name, "2").await
+    奇遇选项(d, copy_name, "2").await
 }
 
 /// 最多558金币
 async fn 倚天事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32) -> Option<Begin> {
     if cur_days == 1 || cur_days == 7 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
         // 前辈、狠心离去
-        return 处理奇遇(d, data, copy_name, "1").await;
+        return 奇遇选项(d, copy_name, "1").await;
     }
 
     if cur_days == 8 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
         // 独自神伤
-        return 处理奇遇(d, data, copy_name, "3").await;
+        return 奇遇选项(d, copy_name, "3").await;
     }
 
-    if let Some(v) = 处理战斗(d, data, copy_name).await {
-        return Some(v);
+    if let Some(id) = 战斗(data) {
+        return 选择事件(d, copy_name, id).await;
     }
 
+    let id = 奇遇(data)?;
+    选择事件(d, copy_name, id).await?;
     // 开始回忆、回首掏
-    处理奇遇(d, data, copy_name, "1").await
+    奇遇选项(d, copy_name, "1").await
 }
 
 /// 最多490金币
 async fn 绝世事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32) -> Option<Begin> {
     if cur_days == 1 || cur_days == 6 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
         // 携手合作、金银财宝
-        return 处理奇遇(d, data, copy_name, "1").await;
+        return 奇遇选项(d, copy_name, "1").await;
     }
 
     // 只有奇遇事件，没有奇遇选项
@@ -261,48 +271,40 @@ async fn 绝世事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32)
     }
 
     if cur_days == 4 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
         // 尝试交谈
-        处理奇遇(d, data, copy_name, "2").await?;
+        奇遇选项(d, copy_name, "2").await?;
         // 借机休息
-        return 处理奇遇(d, data, copy_name, "2").await;
+        return 奇遇选项(d, copy_name, "2").await;
     }
 
-    处理战斗(d, data, copy_name).await
+    let id = 战斗(data)?;
+    选择事件(d, copy_name, id).await
 }
 
 /// 最多520金币
 async fn 桃花事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32) -> Option<Begin> {
     if cur_days == 5 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
         // 嘴硬
-        return 处理奇遇(d, data, copy_name, "1").await;
+        return 奇遇选项(d, copy_name, "1").await;
     }
 
     if cur_days == 7 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
         // 举起火把
-        处理奇遇(d, data, copy_name, "1").await?;
+        奇遇选项(d, copy_name, "1").await?;
         // 过两招
-        处理奇遇(d, data, copy_name, "1").await?;
+        奇遇选项(d, copy_name, "1").await?;
         // 切磋武艺
-        return 处理奇遇(d, data, copy_name, "1").await;
+        return 奇遇选项(d, copy_name, "1").await;
     }
 
-    处理战斗(d, data, copy_name).await
-}
-
-async fn 处理战斗(d: &DaLeDou, data: &Begin, copy_name: &str) -> Option<Begin> {
     let id = 战斗(data)?;
     选择事件(d, copy_name, id).await
-}
-
-async fn 处理奇遇(
-    d: &DaLeDou,
-    data: &Begin,
-    copy_name: &str,
-    adventure_id: &str,
-) -> Option<Begin> {
-    let id = 奇遇(data)?;
-    选择事件(d, copy_name, id).await?;
-    奇遇选项(d, copy_name, adventure_id).await
 }
 
 /// 优先金币最多的战斗，无金币数字时回退首个任意战斗
@@ -425,11 +427,6 @@ async fn 进入下一天(d: &DaLeDou) -> Option<Begin> {
     Some(data)
 }
 
-/// 构造带副本名和天数前缀的事件日志
-fn 事件日志(copy_name: &str, cur_days: &str, msg: &str) -> String {
-    format!("{copy_name} => 第{cur_days}天：{msg}")
-}
-
 async fn 选择事件(d: &DaLeDou, copy_name: &str, event_id: u8) -> Option<Begin> {
     // 选择事件
     let cmd = format!("cmd=jianghudream&op=chooseEvent&event_id={event_id}");
@@ -447,7 +444,10 @@ async fn 选择事件(d: &DaLeDou, copy_name: &str, event_id: u8) -> Option<Begi
         &data.event_desc
     };
     if !msg.is_empty() {
-        d.log(TASK, &事件日志(copy_name, &data.cur_days, msg));
+        d.log(
+            TASK,
+            &format!("{copy_name} => 第{}天：{msg}", data.cur_days),
+        );
     }
 
     if data.result != "0" {
@@ -468,7 +468,10 @@ async fn 奇遇选项(d: &DaLeDou, copy_name: &str, adventure_id: &str) -> Optio
         }
     };
 
-    d.log(TASK, &事件日志(copy_name, &data.cur_days, &data.event_desc));
+    d.log(
+        TASK,
+        &format!("{copy_name} => 第{}天：{}", data.cur_days, data.event_desc),
+    );
     if data.result != "0" {
         return None;
     }
