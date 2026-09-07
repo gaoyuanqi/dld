@@ -25,6 +25,7 @@ mod jiang_hu_chang_meng;
 mod jie_bai;
 mod jin_ri_huo_yue_du;
 mod jing_ji_chang;
+mod kai_xue_ji;
 mod kuang_dong;
 mod le_dou;
 mod le_dou_cai_dan;
@@ -133,6 +134,7 @@ pub enum Task {
     激运牌,
     猜单双,
     娃娃机,
+    开学季,
     乐斗驿站,
     神魔转盘,
     登录有礼,
@@ -214,6 +216,7 @@ impl Task {
             Task::激运牌,
             Task::猜单双,
             Task::娃娃机,
+            Task::开学季,
             Task::乐斗驿站,
             Task::神魔转盘,
             Task::登录有礼,
@@ -296,6 +299,7 @@ pub async fn run_task(d: &DaLeDou, name: &Task) {
         Task::激运牌 => ji_yun_pai::run(d).await,
         Task::猜单双 => cai_dan_shuang::run(d).await,
         Task::娃娃机 => wa_wa_ji::run(d).await,
+        Task::开学季 => kai_xue_ji::run(d).await,
         Task::乐斗驿站 => le_dou_yi_zhan::run(d).await,
         Task::神魔转盘 => shen_mo_zhuan_pan::run(d).await,
         Task::登录有礼 => deng_lu_you_li::run(d).await,
