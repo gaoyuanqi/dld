@@ -11,6 +11,7 @@ mod dou_jing_tan_mi;
 mod dui_huan_ma;
 mod fei_sheng;
 mod fen_xiang;
+mod gua_gua_ka;
 mod hao_jie_bao_xiang;
 mod hao_li_ti_sheng;
 mod hao_xia_chu_shi;
@@ -135,6 +136,7 @@ pub enum Task {
     猜单双,
     娃娃机,
     开学季,
+    刮刮卡,
     乐斗驿站,
     神魔转盘,
     登录有礼,
@@ -217,6 +219,7 @@ impl Task {
             Task::猜单双,
             Task::娃娃机,
             Task::开学季,
+            Task::刮刮卡,
             Task::乐斗驿站,
             Task::神魔转盘,
             Task::登录有礼,
@@ -300,6 +303,7 @@ pub async fn run_task(d: &DaLeDou, name: &Task) {
         Task::猜单双 => cai_dan_shuang::run(d).await,
         Task::娃娃机 => wa_wa_ji::run(d).await,
         Task::开学季 => kai_xue_ji::run(d).await,
+        Task::刮刮卡 => gua_gua_ka::run(d).await,
         Task::乐斗驿站 => le_dou_yi_zhan::run(d).await,
         Task::神魔转盘 => shen_mo_zhuan_pan::run(d).await,
         Task::登录有礼 => deng_lu_you_li::run(d).await,
