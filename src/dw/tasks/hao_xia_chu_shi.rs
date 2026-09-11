@@ -36,8 +36,8 @@ pub async fn run(d: &DaLeDou) {
         }
     };
 
-    // 不在活动时间
-    if data.result == -1 {
+    // {"msg":"不在活动期间","result":4}
+    if data.result == 4 {
         return;
     }
 
