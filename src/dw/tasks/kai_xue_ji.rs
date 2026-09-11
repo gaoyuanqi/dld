@@ -12,6 +12,7 @@ const TASK: &str = "开学季";
 struct Query {
     result: String,
     msg: String,
+    #[serde(default)]
     subtype: String,
     #[serde(default, rename = "type")]
     t: String,
