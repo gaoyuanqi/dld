@@ -438,6 +438,7 @@ async fn 悬赏任务(d: &DaLeDou) {
         result: String,
         msg: String,
         taskinfo1: Vec<Info>,
+        taskinfo2: Vec<Info>,
     }
 
     #[derive(Deserialize)]
@@ -464,7 +465,15 @@ async fn 悬赏任务(d: &DaLeDou) {
         return;
     }
 
+    // 领取每周任务奖励
     for item in &data.taskinfo1 {
+        if item.finish == item.count && item.giftflag == "0" {
+            领取(d, &item.t, &item.id).await;
+        }
+    }
+
+    // 领取赛季任务奖励
+    for item in &data.taskinfo2 {
         if item.finish == item.count && item.giftflag == "0" {
             领取(d, &item.t, &item.id).await;
         }
