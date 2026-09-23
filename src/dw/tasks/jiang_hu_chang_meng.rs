@@ -37,6 +37,7 @@ pub async fn run(d: &DaLeDou) {
             "绝世秘籍之争" => 跑副本(d, item, 副本::绝世).await,
             "桃花自古笑春风" => 跑副本(d, item, 副本::桃花).await,
             "战乱襄阳" => 跑副本(d, item, 副本::战乱).await,
+            "天涯浪子" => 跑副本(d, item, 副本::天涯).await,
             _ => continue,
         }
     }
@@ -90,6 +91,7 @@ enum 副本 {
     绝世,
     桃花,
     战乱,
+    天涯,
 }
 
 /// 副本主流程：处理香炉、胜负、天数推进，事件选择交给 `kind` 对应的事件处理函数
@@ -160,6 +162,7 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
                 副本::绝世 => 绝世事件(d, &data, &copy.name, cur_days).await,
                 副本::桃花 => 桃花事件(d, &data, &copy.name, cur_days).await,
                 副本::战乱 => 战乱事件(d, &data, &copy.name, cur_days).await,
+                副本::天涯 => 天涯事件(d, &data, &copy.name, cur_days).await,
             };
             if let Some(v) = v {
                 data = v;
@@ -325,6 +328,60 @@ async fn 战乱事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32)
         // 周遭探查
         奇遇选项(d, copy_name, "1").await?;
         // 捣毁粮仓
+        return 奇遇选项(d, copy_name, "1").await;
+    }
+
+    let id = 战斗(data)?;
+    选择事件(d, copy_name, id).await
+}
+
+/// 最多355金币
+async fn 天涯事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32) -> Option<Begin> {
+    if cur_days == 1 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 问其身份
+        奇遇选项(d, copy_name, "1").await?;
+        // 锦囊2
+        return 奇遇选项(d, copy_name, "2").await;
+    }
+
+    if cur_days == 2 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 重金求见
+        奇遇选项(d, copy_name, "2").await?;
+        // 相约明日
+        return 奇遇选项(d, copy_name, "2").await;
+    }
+
+    if cur_days == 3 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 阁楼3
+        return 奇遇选项(d, copy_name, "3").await;
+    }
+
+    if cur_days == 4 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 结为姐弟
+        return 奇遇选项(d, copy_name, "2").await;
+    }
+
+    if cur_days == 5 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 筹备计划
+        奇遇选项(d, copy_name, "2").await?;
+        // 是
+        return 奇遇选项(d, copy_name, "1").await;
+    }
+
+    if cur_days == 6 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 锦囊1
         return 奇遇选项(d, copy_name, "1").await;
     }
 
