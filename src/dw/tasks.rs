@@ -24,6 +24,7 @@ mod huo_yue_li_bao;
 mod ji_yun_pai;
 mod jiang_hu_chang_meng;
 mod jie_bai;
+mod jin_qiu_hui_kui;
 mod jin_ri_huo_yue_du;
 mod jing_ji_chang;
 mod kai_xue_ji;
@@ -154,6 +155,7 @@ pub enum Task {
     元武登高,
     乐斗菜单,
     幸运转盘,
+    金秋回馈,
     大侠回归,
     登录商店,
     豪侠出世,
@@ -238,6 +240,7 @@ impl Task {
             Task::元武登高,
             Task::乐斗菜单,
             Task::幸运转盘,
+            Task::金秋回馈,
             Task::大侠回归,
             Task::登录商店,
             Task::豪侠出世,
@@ -323,6 +326,7 @@ pub async fn run_task(d: &DaLeDou, name: &Task) {
         Task::元武登高 => yuan_wu_deng_gao::run(d).await,
         Task::乐斗菜单 => le_dou_cai_dan::run(d).await,
         Task::幸运转盘 => xing_yun_zhuan_pan::run(d).await,
+        Task::金秋回馈 => jin_qiu_hui_kui::run(d).await,
         Task::大侠回归 => da_xia_hui_gui::run(d).await,
         Task::登录商店 => deng_lu_shang_dian::run(d).await,
         Task::豪侠出世 => hao_xia_chu_shi::run(d).await,

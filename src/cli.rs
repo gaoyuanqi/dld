@@ -430,6 +430,11 @@ enum Command {
         qq: QqArg,
     },
     /// 领取
+    金秋回馈 {
+        #[command(flatten)]
+        qq: QqArg,
+    },
+    /// 领取
     大侠回归 {
         #[command(flatten)]
         qq: QqArg,
@@ -542,6 +547,7 @@ pub async fn parse_args() -> Result<()> {
         Command::元武登高 { qq } => app.run_task(Task::元武登高, qq.qq).await?,
         Command::乐斗菜单 { qq } => app.run_task(Task::乐斗菜单, qq.qq).await?,
         Command::幸运转盘 { qq } => app.run_task(Task::幸运转盘, qq.qq).await?,
+        Command::金秋回馈 { qq } => app.run_task(Task::金秋回馈, qq.qq).await?,
         Command::大侠回归 { qq } => app.run_task(Task::大侠回归, qq.qq).await?,
         Command::登录商店 { qq } => app.run_task(Task::登录商店, qq.qq).await?,
         Command::豪侠出世 { qq } => app.run_task(Task::豪侠出世, qq.qq).await?,
