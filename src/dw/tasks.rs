@@ -74,6 +74,7 @@ mod xu_yuan;
 mod yuan_wu_deng_gao;
 mod yuan_zheng;
 mod zhi_ye_tiao_zhan;
+mod zhong_qiu_li_he;
 mod zhou_zhou_li_bao;
 
 use crate::dw::daledou::DaLeDou;
@@ -157,6 +158,7 @@ pub enum Task {
     登录商店,
     豪侠出世,
     秘籍封印,
+    中秋礼盒,
 }
 
 impl Task {
@@ -240,6 +242,7 @@ impl Task {
             Task::登录商店,
             Task::豪侠出世,
             Task::秘籍封印,
+            Task::中秋礼盒,
         ]
     }
 }
@@ -324,5 +327,6 @@ pub async fn run_task(d: &DaLeDou, name: &Task) {
         Task::登录商店 => deng_lu_shang_dian::run(d).await,
         Task::豪侠出世 => hao_xia_chu_shi::run(d).await,
         Task::秘籍封印 => mi_ji_feng_yin::run(d).await,
+        Task::中秋礼盒 => zhong_qiu_li_he::run(d).await,
     }
 }
