@@ -1,6 +1,6 @@
 //! 中秋礼盒
 //!
-//! 领取任务奖励
+//! 领取礼盒和神秘礼物
 
 use serde::Deserialize;
 
@@ -69,17 +69,39 @@ pub async fn run(d: &DaLeDou) {
             领取(d, &item.task_id).await;
         }
     }
+
+    let all_done = data
+        .package_list
+        .iter()
+        .all(|p| p.level_num == p.award_level_num);
+
+    if all_done {
+        领取神秘礼物(d).await;
+    }
+}
+
+#[derive(Deserialize)]
+struct Response {
+    msg: String,
 }
 
 async fn 领取(d: &DaLeDou, id: &str) {
-    #[derive(Deserialize)]
-    struct Response {
-        msg: String,
-    }
-
     // 领取
     let cmd = format!("cmd=midautumngiftbag&sub=1&id={id}");
     let data: Response = match d.get(&cmd).await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    d.log(TASK, &data.msg);
+}
+
+async fn 领取神秘礼物(d: &DaLeDou) {
+    // 领取
+    let data: Response = match d.get("cmd=midautumngiftbag&sub=2").await {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("{e}"));

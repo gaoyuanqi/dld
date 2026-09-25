@@ -459,7 +459,7 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
-    /// 领领取
+    /// 领取礼盒和神秘礼物
     中秋礼盒 {
         #[command(flatten)]
         qq: QqArg,
