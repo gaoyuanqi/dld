@@ -431,6 +431,7 @@ pub struct AccountConfig {
     pub 我的帮派: WoDeBangPai,
     pub 门派邀请赛: MenPaiYaoQingSai,
     pub 开学季: KaiXueJi,
+    pub 吉利兑: JiLiDui,
     pub 登录商店: DengLuShangDian,
 }
 
@@ -450,6 +451,7 @@ impl UpdatableConfig for AccountConfig {
         self.龙凰之境.兑换上限.validate()?;
         self.我的帮派.validate()?;
         self.门派邀请赛.兑换.validate()?;
+        self.吉利兑.validate()?;
         Ok(())
     }
 }
@@ -1185,57 +1187,6 @@ impl MenPaiExchange {
     }
 }
 
-/// 登录商店
-#[derive(Debug, Default, Deserialize, Serialize)]
-#[serde(default)]
-pub struct DengLuShangDian {
-    pub 兑换: DengLuShangDianExchange,
-}
-
-/// 兑换商店兑换材料
-#[derive(Debug, Default, Deserialize, Serialize, PartialEq, Clone, Copy)]
-pub enum DengLuShangDianExchange {
-    #[serde(rename = "黄金卷轴")]
-    黄金卷轴,
-    #[serde(rename = "孙子兵法")]
-    孙子兵法,
-    #[serde(rename = "武穆遗书")]
-    武穆遗书,
-    #[serde(rename = "神秘精华")]
-    神秘精华,
-    #[serde(rename = "神兵原石")]
-    #[default]
-    神兵原石,
-    #[serde(rename = "软猥金丝")]
-    软猥金丝,
-    #[serde(rename = "凤凰羽毛")]
-    凤凰羽毛,
-    #[serde(rename = "潜能果实")]
-    潜能果实,
-    #[serde(rename = "上古玉髓")]
-    上古玉髓,
-    #[serde(rename = "奔流气息")]
-    奔流气息,
-}
-
-impl DengLuShangDianExchange {
-    /// 物品名称，用于匹配接口返回的兑换物品列表
-    pub(crate) fn item_name(&self) -> &str {
-        match self {
-            Self::黄金卷轴 => "黄金卷轴",
-            Self::孙子兵法 => "孙子兵法",
-            Self::武穆遗书 => "武穆遗书",
-            Self::神秘精华 => "神秘精华",
-            Self::神兵原石 => "神兵原石",
-            Self::软猥金丝 => "软猥金丝",
-            Self::凤凰羽毛 => "凤凰羽毛",
-            Self::潜能果实 => "潜能果实",
-            Self::上古玉髓 => "上古玉髓",
-            Self::奔流气息 => "奔流气息",
-        }
-    }
-}
-
 /// 开学季
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
@@ -1316,6 +1267,104 @@ impl FengKuangXuYuan {
             Self::中型武器专精 => "中型武器专精",
             Self::大型武器专精 => "大型武器专精",
             Self::强化 => "强化",
+        }
+    }
+}
+
+/// 吉利兑
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
+pub struct JiLiDui {
+    pub 兑换优先级: Vec<String>,
+}
+
+impl Default for JiLiDui {
+    fn default() -> Self {
+        Self {
+            兑换优先级: vec![
+                "V级万能碎片".to_string(),
+                "熔炼乌金".to_string(),
+                "舆图".to_string(),
+                "玄铁令".to_string(),
+                "挑战书".to_string(),
+            ],
+        }
+    }
+}
+
+impl JiLiDui {
+    fn validate(&self) -> Result<()> {
+        if self.兑换优先级.len() > 12 {
+            bail!(
+                "吉利兑.兑换优先级 物品上限 12 个，当前 {} 个",
+                self.兑换优先级.len()
+            );
+        }
+        let unique: HashSet<_> = self.兑换优先级.iter().collect();
+        if unique.len() != self.兑换优先级.len() {
+            bail!("吉利兑.兑换优先级 物品不允许重复");
+        }
+        for (i, item) in self.兑换优先级.iter().enumerate() {
+            let chars = item.chars().count();
+            if chars == 0 || chars > 15 {
+                bail!(
+                    "吉利兑.兑换优先级[{}] 期望 1~15 字符，实际为 {} 字符：\"{item}\"",
+                    i,
+                    chars
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
+/// 登录商店
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct DengLuShangDian {
+    pub 兑换: DengLuShangDianExchange,
+}
+
+/// 兑换商店兑换材料
+#[derive(Debug, Default, Deserialize, Serialize, PartialEq, Clone, Copy)]
+pub enum DengLuShangDianExchange {
+    #[serde(rename = "黄金卷轴")]
+    黄金卷轴,
+    #[serde(rename = "孙子兵法")]
+    孙子兵法,
+    #[serde(rename = "武穆遗书")]
+    武穆遗书,
+    #[serde(rename = "神秘精华")]
+    神秘精华,
+    #[serde(rename = "神兵原石")]
+    #[default]
+    神兵原石,
+    #[serde(rename = "软猥金丝")]
+    软猥金丝,
+    #[serde(rename = "凤凰羽毛")]
+    凤凰羽毛,
+    #[serde(rename = "潜能果实")]
+    潜能果实,
+    #[serde(rename = "上古玉髓")]
+    上古玉髓,
+    #[serde(rename = "奔流气息")]
+    奔流气息,
+}
+
+impl DengLuShangDianExchange {
+    /// 物品名称，用于匹配接口返回的兑换物品列表
+    pub(crate) fn item_name(&self) -> &str {
+        match self {
+            Self::黄金卷轴 => "黄金卷轴",
+            Self::孙子兵法 => "孙子兵法",
+            Self::武穆遗书 => "武穆遗书",
+            Self::神秘精华 => "神秘精华",
+            Self::神兵原石 => "神兵原石",
+            Self::软猥金丝 => "软猥金丝",
+            Self::凤凰羽毛 => "凤凰羽毛",
+            Self::潜能果实 => "潜能果实",
+            Self::上古玉髓 => "上古玉髓",
+            Self::奔流气息 => "奔流气息",
         }
     }
 }
@@ -2298,6 +2347,47 @@ mod tests {
         let d = DuiHuanShangDian(vec!["a".to_string(), "b".to_string()]);
         assert!(d.should_exchange("a"));
         assert!(!d.should_exchange("c"));
+    }
+
+    // 吉利兑默认兑换优先级顺序正确
+    #[test]
+    fn test_account_config_jili_dui_default_order() {
+        let config = JiLiDui::default();
+        let want = ["V级万能碎片", "熔炼乌金", "舆图", "玄铁令", "挑战书"];
+        assert_eq!(config.兑换优先级.len(), want.len());
+        for (got, want) in config.兑换优先级.iter().zip(want.iter()) {
+            assert_eq!(got, want);
+        }
+    }
+
+    // 吉利兑配置保留用户值
+    #[test]
+    fn test_account_config_load_jili_dui_valid() {
+        let json = r#"{"吉利兑": {"兑换优先级": ["挑战书", "玄铁令"]}}"#;
+        let config = load_account(json).unwrap();
+        assert_eq!(config.吉利兑.兑换优先级, ["挑战书", "玄铁令"]);
+    }
+
+    // 吉利兑物品名称重复报错
+    #[test]
+    fn test_account_config_load_jili_dui_duplicate_errors() {
+        let json = r#"{"吉利兑": {"兑换优先级": ["挑战书", "挑战书"]}}"#;
+        assert!(load_account(json).is_err());
+    }
+
+    // 吉利兑物品数量超上限报错
+    #[test]
+    fn test_account_config_load_jili_dui_too_many_errors() {
+        let items: Vec<String> = (0..13).map(|i| format!("物品{i}")).collect();
+        let json = serde_json::json!({ "吉利兑": { "兑换优先级": items } }).to_string();
+        assert!(load_account(&json).is_err());
+    }
+
+    // 吉利兑空名称报错
+    #[test]
+    fn test_account_config_load_jili_dui_empty_name_errors() {
+        let json = r#"{"吉利兑": {"兑换优先级": [""]}}"#;
+        assert!(load_account(json).is_err());
     }
 
     #[test]

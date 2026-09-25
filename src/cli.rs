@@ -349,6 +349,11 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
+    /// 领取、兑换
+    吉利兑 {
+        #[command(flatten)]
+        qq: QqArg,
+    },
     /// 领取淬火结晶*1
     乐斗驿站 {
         #[command(flatten)]
@@ -531,6 +536,7 @@ pub async fn parse_args() -> Result<()> {
         Command::娃娃机 { qq } => app.run_task(Task::娃娃机, qq.qq).await?,
         Command::开学季 { qq } => app.run_task(Task::开学季, qq.qq).await?,
         Command::刮刮卡 { qq } => app.run_task(Task::刮刮卡, qq.qq).await?,
+        Command::吉利兑 { qq } => app.run_task(Task::吉利兑, qq.qq).await?,
         Command::乐斗驿站 { qq } => app.run_task(Task::乐斗驿站, qq.qq).await?,
         Command::神魔转盘 { qq } => app.run_task(Task::神魔转盘, qq.qq).await?,
         Command::登录有礼 { qq } => app.run_task(Task::登录有礼, qq.qq).await?,
