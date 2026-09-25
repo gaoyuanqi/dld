@@ -20,8 +20,10 @@ pub async fn run(d: &DaLeDou) {
     #[derive(Deserialize)]
     struct Package {
         task_id: String,
-        finish_num: String,
-        limit_num: String,
+        level_num: String,       // 总等级数
+        award_level_num: String, // 已领等级数
+        finish_num: String,      // 当前进度
+        limit_num: String,       // 进度上限
     }
 
     let data: Query = match d.get("cmd=midautumngiftbag&sub=0").await {
@@ -43,7 +45,27 @@ pub async fn run(d: &DaLeDou) {
     }
 
     for item in &data.package_list {
-        if item.finish_num == item.limit_num {
+        // 已领取完该系列任务所有奖励
+        if item.level_num == item.award_level_num {
+            continue;
+        }
+
+        let finish_num: u32 = match item.finish_num.parse() {
+            Ok(v) => v,
+            Err(e) => {
+                d.log(TASK, &format!("解析 finish_num 字段失败：{e}"));
+                return;
+            }
+        };
+        let limit_num: u32 = match item.limit_num.parse() {
+            Ok(v) => v,
+            Err(e) => {
+                d.log(TASK, &format!("解析 limit_num 字段失败：{e}"));
+                return;
+            }
+        };
+
+        if finish_num >= limit_num {
             领取(d, &item.task_id).await;
         }
     }
