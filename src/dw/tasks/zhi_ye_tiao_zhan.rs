@@ -1,9 +1,12 @@
 //! 职业挑战
 //!
 //! 免费随机、挑战
+//!
+//! 如果没有手动自选武技库则不会也不允许挑战
 
 use std::time::Duration;
 
+use chrono::{Local, Timelike};
 use serde::Deserialize;
 use tokio::time;
 
@@ -42,6 +45,13 @@ pub async fn run(d: &DaLeDou) {
 
     if data.fresh_free_times == "1" {
         随机(d).await;
+    }
+
+    // 挑战时间为每天12点~24点
+    let now = Local::now();
+    let hour = now.hour();
+    if !(12..24).contains(&hour) {
+        return;
     }
 
     if let Some(remaining) = data
