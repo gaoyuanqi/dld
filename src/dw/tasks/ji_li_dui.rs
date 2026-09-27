@@ -163,6 +163,7 @@ async fn 兑换(d: &DaLeDou, mut myspirit: u32, reward: &[Reward]) {
 
     for want in config {
         let Some(item) = reward.iter().find(|r| want == &r.goodsname) else {
+            d.log(TASK, &format!("{want} => 兑换物品不存在"));
             continue;
         };
 
