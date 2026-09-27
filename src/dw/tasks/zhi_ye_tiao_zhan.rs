@@ -43,15 +43,15 @@ pub async fn run(d: &DaLeDou) {
         return;
     }
 
-    if data.fresh_free_times == "1" {
-        随机(d).await;
-    }
-
     // 挑战时间为每天12点~24点
     let now = Local::now();
     let hour = now.hour();
     if !(12..24).contains(&hour) {
         return;
+    }
+
+    if data.fresh_free_times == "1" {
+        随机(d).await;
     }
 
     if let Some(remaining) = data
