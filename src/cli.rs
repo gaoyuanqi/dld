@@ -69,7 +69,7 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
-    /// 乐斗BOOS、师徒妻拜
+    /// 乐斗BOOS、心魔、师徒妻拜
     乐斗 {
         #[command(flatten)]
         qq: QqArg,

@@ -1,6 +1,8 @@
-//! 乐斗好友NPC、帮友NPC、侠侣NPC、结拜NPC、师徒妻拜
+//! 乐斗好友NPC、帮友NPC、侠侣NPC、结拜NPC、心魔、师徒妻拜
 //!
 //! 跳过已乐斗
+//!
+//! 乐斗心魔3次是因为今日活跃度乐斗好友20次不稳定
 
 use serde::Deserialize;
 
@@ -13,7 +15,7 @@ pub async fn run(d: &DaLeDou) {
         return;
     };
 
-    let Some(visit_data) = visit(d).await else {
+    let Some(visit_data) = self_visit(d).await else {
         return;
     };
 
@@ -43,6 +45,7 @@ pub async fn run(d: &DaLeDou) {
         侠侣_npc(d, &npcs).await;
     }
 
+    心魔(d, &visit_data).await;
     师傅(d, &visit_data).await;
     徒弟(d, &visit_data).await;
     夫妻(d, &visit_data).await;
@@ -94,8 +97,9 @@ struct Visit {
 
 #[derive(Deserialize)]
 struct BaseInfo {
-    lilian: String,    // 玩家等级
-    factionid: String, // 帮派id
+    lilian: String,            // 玩家等级
+    factionid: String,         // 帮派id
+    devil_inside_flag: String, // 是否可以乐斗心魔
 }
 
 #[derive(Deserialize)]
@@ -128,7 +132,8 @@ struct BrotherList {
     brotheruin: String,
 }
 
-async fn visit(d: &DaLeDou) -> Option<Visit> {
+/// 账号资料数据
+async fn self_visit(d: &DaLeDou) -> Option<Visit> {
     let cmd = format!("cmd=visit&puin={}&kind=1", d.qq());
     let data: Visit = match d.get(&cmd).await {
         Ok(v) => v,
@@ -158,9 +163,10 @@ struct UinVisit {
 #[derive(Deserialize)]
 struct UinBaseInfo {
     #[serde(default)]
-    fightflag: String, // 是否乐斗该玩家
+    fightflag: String, // 是否乐斗过该玩家
 }
 
+/// 指定uin账号资料数据
 async fn uin_visit(d: &DaLeDou, uin: &str) -> Option<UinVisit> {
     let cmd = format!("cmd=visit&puin={uin}&kind=1");
     let data: UinVisit = match d.get(&cmd).await {
@@ -277,6 +283,17 @@ async fn 侠侣_npc(d: &DaLeDou, uin: &[u8]) {
         if data.baseinfo.fightflag == "1" {
             乐斗(d, &format!("cmd=fight&puin={u}")).await;
         }
+    }
+}
+
+async fn 心魔(d: &DaLeDou, visit_data: &Visit) {
+    // 与心魔乐斗已到上限（3次）
+    if visit_data.baseinfo.devil_inside_flag == "0" {
+        return;
+    }
+
+    for _ in 0..3 {
+        乐斗(d, &format!("cmd=fight&puin={}", d.qq())).await;
     }
 }
 
