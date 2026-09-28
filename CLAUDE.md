@@ -18,6 +18,13 @@ Q宠大乐斗个人版代玩辅助
 
 # 关键模式
 
+## 敏感文件权限
+
+- 敏感数据文件（Cookie 等）0600、数据目录 0700，仅所有者可读写
+- 权限操作仅 Unix：用 `#[cfg(unix)]` 包裹（Windows 上 `set_permissions` 是只读标志，乱设会锁死文件）
+- 新文件用 `OpenOptions::mode(0600)` 创建即收紧；已存在文件必须显式 `set_permissions` 收紧（`mode` 只对新文件生效）
+- 启动时幂等收紧，覆盖老用户升级前创建的宽松权限文件
+
 ## HTTP 请求
 
 - 大乐斗接口返回 GBK 编码 JSON，解码用 `encoding_rs::GBK.decode()`
