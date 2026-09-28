@@ -30,6 +30,8 @@ impl App {
     /// 初始化应用程序（路径 → HTTP 客户端 → 账号存储）
     pub fn init() -> Result<Self> {
         let paths = Paths::new()?;
+        // 每次启动统一收紧权限，覆盖老用户升级前创建的宽松权限文件
+        paths.tighten_permissions()?;
         let http_client = client::default_http_client()?;
         let accounts = AccountStore::new(paths.cookies_file());
         Ok(App {
