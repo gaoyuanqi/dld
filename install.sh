@@ -6,13 +6,17 @@ set -eu
 # MODIFY_PATH=0
 # 安装指定版本（默认 latest）
 # VERSION=v1.0.0
+# 跳过 SHA256 校验（风险自负）
+# SKIP_VERIFY=1
 
+# GITHUB 同时是 SHA256SUMS 校验文件的来源，自定义时会同步改变信任根（高级用户逃生舱）
 GITEE="${GITEE:-https://gitee.com}"
 GITHUB="${GITHUB:-https://github.com}"
 REPO="gaoyuanqi/dld"
 INSTALL_DIR="${HOME}/.local/bin"
 MODIFY_PATH="${MODIFY_PATH:-1}"
 VERSION="${VERSION:-latest}"
+SKIP_VERIFY="${SKIP_VERIFY:-0}"
 
 echo "Q宠大乐斗代玩辅助 — 一键安装"
 
@@ -60,7 +64,11 @@ mkdir -p "${INSTALL_DIR}"
 
 # === 下载（临时文件 + 多源回退 + 空文件校验） ===
 tmpfile="${INSTALL_DIR}/.dld.tmp.$$"
-cleanup_tmp() { if [ -f "${tmpfile}" ]; then rm -f "${tmpfile}"; fi; }
+sumfile="${INSTALL_DIR}/.dld.sha256.$$"
+cleanup_tmp() {
+    if [ -f "${tmpfile}" ]; then rm -f "${tmpfile}"; fi
+    if [ -f "${sumfile}" ]; then rm -f "${sumfile}"; fi
+}
 trap cleanup_tmp EXIT
 
 # === 检测下载器 ===
@@ -72,6 +80,20 @@ else
     echo "请先安装 curl 或 wget"
     exit 1
 fi
+
+# 计算文件 SHA256，输出 "<hash>  <file>" 格式
+hash_file() {
+    if command -v sha256sum > /dev/null 2>&1; then
+        sha256sum "$1"
+    elif command -v shasum > /dev/null 2>&1; then
+        shasum -a 256 "$1"
+    elif command -v openssl > /dev/null 2>&1; then
+        openssl dgst -sha256 -r "$1"
+    else
+        echo "错误：缺少 sha256sum / shasum / openssl，无法校验下载的二进制"
+        exit 1
+    fi
+}
 
 downloaded=false
 for url in ${download_urls}; do
@@ -91,6 +113,44 @@ done
 if [ "${downloaded}" != true ]; then
     echo "错误：所有下载源均失败"
     exit 1
+fi
+
+# === SHA256 校验 ===
+if [ "${SKIP_VERIFY}" = "1" ]; then
+    echo "已跳过 SHA256 校验（SKIP_VERIFY=1）"
+else
+    # 校验文件仅发布在 GitHub（独立信任根），Gitee 侧被篡改无法伪造
+    if [ "${VERSION}" = "latest" ]; then
+        sums_url="${GITHUB}/${REPO}/releases/latest/download/SHA256SUMS"
+    else
+        sums_url="${GITHUB}/${REPO}/releases/download/${VERSION}/SHA256SUMS"
+    fi
+    echo "下载校验文件: ${sums_url}"
+    if [ "${downloader}" = "curl" ]; then
+        if ! curl -fsSL --retry 3 --connect-timeout 10 --max-time 60 -o "${sumfile}" "${sums_url}"; then
+            echo "错误：校验文件下载失败，无法验证二进制来源"
+            echo "跳过校验（风险自负）：SKIP_VERIFY=1"
+            exit 1
+        fi
+    else
+        if ! wget -q --tries=3 --timeout=10 -O "${sumfile}" "${sums_url}"; then
+            echo "错误：校验文件下载失败，无法验证二进制来源"
+            echo "跳过校验（风险自负）：SKIP_VERIFY=1"
+            exit 1
+        fi
+    fi
+
+    # 哈希统一转小写，不依赖生成端的大小写输出；容忍 "*" 前缀，命中即取第一行
+    expected=$(awk -v b="${BINARY}" '$2 == b || $2 == "*"b {print $1; exit}' "${sumfile}" | tr 'A-F' 'a-f')
+    actual=$(hash_file "${tmpfile}" | awk '{print $1}' | tr 'A-F' 'a-f')
+    if [ -z "${expected}" ] || [ "${expected}" != "${actual}" ]; then
+        echo "错误：SHA256 校验失败，二进制可能被篡改或损坏"
+        echo "  期望：${expected:-（校验文件中无 ${BINARY} 条目）}"
+        echo "  实际：${actual}"
+        echo "跳过校验（风险自负）：SKIP_VERIFY=1"
+        exit 1
+    fi
+    echo "SHA256 校验通过"
 fi
 
 mv "${tmpfile}" "${INSTALL_DIR}/dld"
