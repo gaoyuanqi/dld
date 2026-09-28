@@ -107,8 +107,7 @@ impl AccountStore {
             .or_insert(account.record.clone());
 
         let json = serde_json::to_string_pretty(&accounts).context("序列化账号数据失败")?;
-        fs::write(&self.path, json)
-            .with_context(|| format!("写入账号文件失败：{}", self.path.display()))?;
+        self.write_cookies(&json)?;
 
         println!("\n{} 登记成功！", account.qq);
 
@@ -121,13 +120,40 @@ impl AccountStore {
 
         if accounts.remove(qq).is_some() {
             let json = serde_json::to_string_pretty(&accounts).context("序列化账号数据失败")?;
-            fs::write(&self.path, json)
-                .with_context(|| format!("写入账号文件失败：{}", self.path.display()))?;
+            self.write_cookies(&json)?;
             println!("\n{} 注销成功！", qq);
         } else {
             println!("\n未找到 QQ {} 的账号，无需移除", qq);
         }
 
+        Ok(())
+    }
+
+    /// 写入 Cookie 文件并收紧权限（Unix 下 0600，防止其他用户读取）
+    fn write_cookies(&self, json: &str) -> Result<()> {
+        #[cfg(unix)]
+        {
+            use std::io::Write;
+            use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+
+            // 新文件创建即 0600，无先宽松后收紧的窗口期
+            let mut options = fs::OpenOptions::new();
+            options.write(true).create(true).truncate(true).mode(0o600);
+            options
+                .open(&self.path)
+                .with_context(|| format!("写入账号文件失败：{}", self.path.display()))?
+                .write_all(json.as_bytes())
+                .with_context(|| format!("写入账号文件失败：{}", self.path.display()))?;
+
+            // 已存在文件（老用户升级前为 0644）写入后统一收紧
+            fs::set_permissions(&self.path, fs::Permissions::from_mode(0o600))
+                .with_context(|| format!("收紧账号文件权限失败：{}", self.path.display()))?;
+        }
+        #[cfg(not(unix))]
+        {
+            fs::write(&self.path, json)
+                .with_context(|| format!("写入账号文件失败：{}", self.path.display()))?;
+        }
         Ok(())
     }
 
@@ -342,6 +368,53 @@ mod tests {
         let (store, _dir) = temp_store();
         // 不保存任何账号，直接删除不存在的 — 不应报错
         assert!(store.remove("99999").is_ok());
+    }
+
+    // ── 文件权限测试（仅 Unix，Cookie 文件应仅所有者可读写） ──
+
+    // 新建的 Cookie 文件权限应为 0600
+    #[cfg(unix)]
+    #[test]
+    fn test_save_creates_private_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let (store, dir) = temp_store();
+        store.save(&sample_account("10001")).unwrap();
+
+        let path = dir.path().join("accounts.json");
+        let mode = fs::metadata(&path).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
+    }
+
+    // 已存在文件权限过宽（如老用户升级前的 0644），save 后应收紧为 0600
+    #[cfg(unix)]
+    #[test]
+    fn test_save_tightens_existing_file_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let (store, dir) = temp_store();
+        let path = dir.path().join("accounts.json");
+        fs::write(&path, "{}").unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+
+        store.save(&sample_account("10001")).unwrap();
+
+        let mode = fs::metadata(&path).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
+    }
+
+    // 注销时写回的 Cookie 文件同样收紧为 0600
+    #[cfg(unix)]
+    #[test]
+    fn test_remove_tightens_file_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let (store, dir) = temp_store();
+        let path = dir.path().join("accounts.json");
+        store.save(&sample_account("10001")).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+
+        store.remove("10001").unwrap();
+
+        let mode = fs::metadata(&path).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
     }
 
     fn temp_store() -> (AccountStore, tempfile::TempDir) {
