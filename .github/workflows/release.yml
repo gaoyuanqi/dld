@@ -96,6 +96,22 @@ jobs:
           chmod +x dld-linux-x86_64/dld-linux-x86_64 dld-linux-arm64/dld-linux-arm64 dld-macos-arm64/dld-macos-arm64 dld-macos-x86_64/dld-macos-x86_64
           ls -lh dld-*/dld*
 
+      - name: 生成 SHA256SUMS
+        run: |
+          # 校验文件名与 install.sh 中 BINARY 一致，去除路径前缀
+          sha256sum \
+            dld-linux-x86_64/dld-linux-x86_64 \
+            dld-linux-arm64/dld-linux-arm64 \
+            dld-windows-x86_64/dld-windows-x86_64.exe \
+            dld-macos-arm64/dld-macos-arm64 \
+            dld-macos-x86_64/dld-macos-x86_64 \
+            | sed 's|  .*/|  |' > SHA256SUMS
+          cat SHA256SUMS
+          # 条目齐全校验：任一平台缺失则发版失败（脚本端 fail-closed，漏传会导致该平台用户全部装不上）
+          for f in dld-linux-x86_64 dld-linux-arm64 dld-windows-x86_64.exe dld-macos-arm64 dld-macos-x86_64; do
+            grep -q "  ${f}$" SHA256SUMS || { echo "错误：SHA256SUMS 缺少条目 ${f}"; exit 1; }
+          done
+
       - name: 创建 Release 并上传
         run: |
           # 删除可能存在的旧 release（重试场景），保留 git tag
@@ -103,6 +119,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes \
+            SHA256SUMS \
             dld-linux-x86_64/dld-linux-x86_64 \
             dld-linux-arm64/dld-linux-arm64 \
             dld-windows-x86_64/dld-windows-x86_64.exe \
