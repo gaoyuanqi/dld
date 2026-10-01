@@ -70,3 +70,24 @@ jobs:
           & "$env:USERPROFILE\.local\bin\dld.exe" --version
           # install.ps1 已注入当前会话 PATH，直接验证
           dld --version
+
+  notify-failure:
+    needs: install-verify
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: 探针失败自动开 issue（去重）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="安装验证失败（${{ github.event_name }}）"
+          # 已存在同标题 open issue 则跳过，避免 schedule 连续失败每天刷屏
+          if gh issue list --state open --search "${TITLE} in:title" --json number | grep -q '"number"'; then
+            echo "已存在同标题 issue，跳过创建"
+            exit 0
+          fi
+          gh issue create \
+            --title "${TITLE}" \
+            --body "安装验证探针失败，用户可能无法安装。触发：${{ github.event_name }}，运行：${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
