@@ -18,6 +18,15 @@
 - 用户提交的账号 Cookie 仅存储在本地，开发者不收集、不上传任何用户数据
 - 最后更新：2026-08-15
 
+## 安全说明
+
+安装脚本会校验下载的二进制 SHA256 哈希，校验文件仅从 GitHub 发布（独立信任根），防止镜像或传输途中被篡改，校验失败会中止安装
+
+- 能防：Gitee 镜像被入侵后替换二进制、下载途中被篡改或损坏
+- 不能防：GitHub 仓库或账号被接管（攻击者可同时替换二进制与校验文件）、作者本人作恶
+- 高安全需求可改用源码安装：[方式二：cargo install](#方式二cargo-install)
+- 本地数据保护：Cookie 等敏感数据以仅所有者可读写权限存储（Unix 下文件 0600、目录 0700）
+
 ## 安装
 
 ### 方式一：一键安装（推荐）
@@ -48,7 +57,7 @@ irm https://gitee.com/gaoyuanqi/dld/raw/main/install.ps1 | iex
 
 ### 方式二：cargo install
 
-需要安装好 [Rust 工具链](https://rust-lang.org/zh-CN/)（≥1.97.0）
+需要安装好 [Rust 工具链](https://rust-lang.org/zh-CN/)（≥1.97.0），从源码编译安装
 
 > 国内建议先配置 crates.io 镜像（中科大），在 `~/.cargo/config.toml` 写入：
 >
@@ -60,13 +69,11 @@ irm https://gitee.com/gaoyuanqi/dld/raw/main/install.ps1 | iex
 > registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
 > ```
 
-**直接安装（推荐）**
+**一条命令安装（推荐）**
 
 ```bash
 cargo install --git https://gitee.com/gaoyuanqi/dld.git --locked
 ```
-
-> Android 可借助 [Termux](https://termux.dev/) 直接安装
 
 **克隆后安装**
 
@@ -76,6 +83,8 @@ cd dld
 cargo install --path . --locked
 ```
 
+> Android 用户可在 [Termux](https://termux.dev/) 中安装 Rust 工具链后，用上述任一命令安装
+
 安装后 `dld` 命令可直接使用
 
 ### 验证安装
@@ -84,7 +93,7 @@ cargo install --path . --locked
 dld --version
 ```
 
-输出类似 `dld 0.1.0` 说明安装成功
+输出类似 `dld x.y.z` 说明安装成功
 
 ## 快速开始
 
