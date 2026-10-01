@@ -63,7 +63,7 @@ Q宠大乐斗个人版代玩辅助
 
 - `gitee-mirror.yml`：push main 自动同步代码到 Gitee 镜像
 - `release.yml` 的 gitee-sync job：发版自动同步 Release + 5 平台附件（并行上传）
-- Gitee 无 latest 下载路由，install.sh 用 Gitee 列表 API 解析最新版本号
+- Gitee 支持 latest 下载路由（`/releases/download/latest/` 已实测可用），install.sh 直拼 URL 无需 API 解析
 - Gitee API 偶发瞬时 404，workflow 中清理类步骤保持 best-effort 容错
 - Gitee 侧 issue/PR 已关闭，反馈引导至 GitHub Issues
 
