@@ -49,6 +49,7 @@ New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
 # === 下载（临时文件 + 多源回退 + 空文件校验） ===
 $TmpFile = "$InstallDir\.dld.tmp.$PID"
+$SumFile = "$InstallDir\.dld.sha256.$PID"
 $downloaded = $false
 $originalProgressPreference = $ProgressPreference
 
@@ -80,14 +81,20 @@ try {
         }
         Write-Host "下载校验文件: ${SumsUrl}"
         try {
-            $Sums = Invoke-WebRequest -Uri $SumsUrl -UseBasicParsing -TimeoutSec 60
+            # 下载到文件而非内存：SHA256SUMS 的 Content-Type 为 octet-stream，
+            # Invoke-WebRequest 内存读取会得到 byte[]，无法按行解析
+            Invoke-WebRequest -Uri $SumsUrl -OutFile $SumFile -UseBasicParsing -TimeoutSec 60
         } catch {
             throw "校验文件下载失败，无法验证二进制来源。跳过校验（风险自负）：-SkipVerify"
         }
 
-        $Line = ($Sums.Content -split "`n") | Where-Object { $_.Trim() -like "*dld-windows-${arch}.exe" } | Select-Object -First 1
+        $Line = ((Get-Content $SumFile -Raw) -split "`n") | Where-Object { $_.Trim() -like "*dld-windows-${arch}.exe" } | Select-Object -First 1
         # 期望与实际哈希统一小写，不依赖比较运算符的大小写语义
         $Expected = if ($Line) { ($Line.Trim() -split '\s+')[0].ToLower() } else { "" }
+        # 区分"校验文件条目格式非法"与"哈希不匹配"两类失败
+        if ($Expected -and $Expected -notmatch '^[0-9a-f]{64}$') {
+            throw "SHA256 校验失败：校验文件中 dld-windows-${arch}.exe 条目格式非法。跳过校验（风险自负）：-SkipVerify"
+        }
         $Actual = (Get-FileHash -Algorithm SHA256 $TmpFile).Hash.ToLower()
         if (-not $Expected) {
             throw "SHA256 校验失败：校验文件中无 dld-windows-${arch}.exe 条目。跳过校验（风险自负）：-SkipVerify"
@@ -119,6 +126,9 @@ try {
     # 下载失败或校验失败时清理临时文件；安装成功后 TmpFile 已 Move 走，此处自然跳过
     if (Test-Path $TmpFile) {
         Remove-Item -Force $TmpFile
+    }
+    if (Test-Path $SumFile) {
+        Remove-Item -Force $SumFile
     }
 }
 
