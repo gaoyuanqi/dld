@@ -1,0 +1,72 @@
+name: 安装验证
+
+on:
+  release:
+    types: [published]
+  schedule:
+    # 每天 UTC 18:00（北京时间次日凌晨 2 点）验证 latest 安装链
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '要验证的版本（latest 或 tag，如 v0.1.2）'
+        required: true
+        default: 'latest'
+
+permissions:
+  contents: read
+
+jobs:
+  install-verify:
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest    # Linux x86_64
+          - os: ubuntu-26.04-arm # Linux arm64
+          - os: macos-latest     # macOS arm64
+          - os: macos-15-intel   # macOS x86_64（若标签失效换当前 Intel 标签）
+          - os: windows-latest   # Windows x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: 解析要验证的版本
+        id: ver
+        shell: bash
+        run: |
+          # release 事件钉死本次 tag（刚发布时 latest 可能仍指向旧版）
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "version=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ inputs.version || 'latest' }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ---- Unix：跑 install.sh 全链路（含 SHA256 校验）----
+      - name: install.sh 全链路验证
+        if: runner.os != 'Windows'
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          sh install.sh
+          test -x "$HOME/.local/bin/dld"
+          "$HOME/.local/bin/dld" --version
+
+      - name: 校验 PATH 注入（Unix）
+        if: runner.os != 'Windows'
+        run: |
+          # install.sh 只写 rc 文件不改当前会话 PATH，查 rc 确认注入
+          grep -F "$HOME/.local/bin" "$HOME/.bashrc"
+
+      # ---- Windows：跑 install.ps1 全链路 ----
+      - name: install.ps1 全链路验证
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./install.ps1 -Version "${{ steps.ver.outputs.version }}"
+          if (-not (Test-Path "$env:USERPROFILE\.local\bin\dld.exe")) { exit 1 }
+          & "$env:USERPROFILE\.local\bin\dld.exe" --version
+          # install.ps1 已注入当前会话 PATH，直接验证
+          dld --version
