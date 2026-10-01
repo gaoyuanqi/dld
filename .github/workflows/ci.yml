@@ -7,11 +7,15 @@ on:
       - '**.rs'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'install.sh'
+      - 'install.ps1'
   pull_request:
     paths:
       - '**.rs'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'install.sh'
+      - 'install.ps1'
 
 permissions:
   contents: read
@@ -46,3 +50,29 @@ jobs:
 
       - name: Run tests
         run: cargo test
+
+  install-sh-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: 语法检查 install.sh（POSIX sh）
+        run: dash -n install.sh && echo "install.sh 语法 OK"
+
+  install-ps1-check:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: 语法检查 install.ps1（PowerShell）
+        shell: pwsh
+        run: |
+          $errs = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile("install.ps1", [ref]$null, [ref]$errs)
+          if ($errs.Count -gt 0) {
+            $errs | ForEach-Object { Write-Host $_.Message }
+            exit 1
+          }
+          Write-Host "install.ps1 语法 OK"
