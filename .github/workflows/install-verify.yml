@@ -71,8 +71,69 @@ jobs:
           # install.ps1 已注入当前会话 PATH，直接验证
           dld --version
 
-  notify-failure:
+  negative-test:
     needs: install-verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            script: sh
+          - os: windows-latest
+            script: ps1
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # 篡改场景：本地假源提供被篡改的二进制，校验文件仍走真实 GitHub
+      - name: 负向测试（sh 篡改场景）
+        if: matrix.script == 'sh'
+        shell: bash
+        run: |
+          mkdir -p fake-gitee/gaoyuanqi/dld/releases/download/latest
+          printf 'malicious binary' > fake-gitee/gaoyuanqi/dld/releases/download/latest/dld-linux-x86_64
+          (cd fake-gitee && python3 -m http.server 8765 >/dev/null 2>&1) &
+          SERVER_PID=$!
+          sleep 2
+
+          export GITEE="http://localhost:8765"
+          export MODIFY_PATH=0
+          if sh install.sh >install.log 2>&1; then
+            echo "错误：篡改二进制未被拒绝"
+            kill "$SERVER_PID" 2>/dev/null
+            exit 1
+          fi
+          kill "$SERVER_PID" 2>/dev/null
+          # 拒绝原因必须是校验失败，防止校验文件下载失败等网络问题造成的假通过
+          grep -q "SHA256 校验失败" install.log || { echo "错误：拒绝原因不是校验失败（可能网络问题）"; exit 1; }
+          if [ -f "$HOME/.local/bin/dld" ]; then
+            echo "错误：拒绝后仍安装了二进制"
+            exit 1
+          fi
+          echo "负向测试通过：篡改被拒绝且未安装"
+
+      - name: 负向测试（ps1 篡改场景）
+        if: matrix.script == 'ps1'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path fake-gitee\gaoyuanqi\dld\releases\download\latest | Out-Null
+          Set-Content -Path fake-gitee\gaoyuanqi\dld\releases\download\latest\dld-windows-x86_64.exe -Value "malicious binary"
+          $server = Start-Process python -ArgumentList "-m","http.server","8765","--directory","fake-gitee" -WindowStyle Hidden -PassThru
+          try {
+            Start-Sleep 2
+            (Get-Content install.ps1 -Raw) -replace 'https://gitee.com', 'http://localhost:8765' | Set-Content -Path test-install.ps1 -NoNewline
+            # 子进程调用：install.ps1 的 exit 只终止子进程，父会话拿 $LASTEXITCODE 判断
+            pwsh -NoProfile -File ./test-install.ps1 -ModifyPath $false
+            if ($LASTEXITCODE -eq 0) { throw "错误：篡改二进制未被拒绝" }
+            if (Test-Path "$env:USERPROFILE\.local\bin\dld.exe") { throw "错误：拒绝后仍安装了二进制" }
+            Write-Host "负向测试通过：篡改被拒绝且未安装"
+          } finally {
+            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+          }
+
+  notify-failure:
+    needs: [install-verify, negative-test]
     if: failure()
     runs-on: ubuntu-latest
     permissions:
