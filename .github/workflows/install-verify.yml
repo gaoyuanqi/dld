@@ -123,11 +123,15 @@ jobs:
           try {
             Start-Sleep 2
             (Get-Content install.ps1 -Raw) -replace 'https://gitee.com', 'http://localhost:8765' | Set-Content -Path test-install.ps1 -NoNewline
-            # 子进程调用：install.ps1 的 exit 只终止子进程，父会话拿 $LASTEXITCODE 判断
-            pwsh -NoProfile -File ./test-install.ps1 -ModifyPath $false
-            if ($LASTEXITCODE -eq 0) { throw "错误：篡改二进制未被拒绝" }
+            # -Command 让子进程按 PowerShell 语法解析参数，$false 保持布尔类型
+            $out = pwsh -NoProfile -Command "& './test-install.ps1' -ModifyPath `$false" 2>&1 | Out-String
+            if ($LASTEXITCODE -eq 0) { $out; throw "错误：篡改二进制未被拒绝" }
+            # 拒绝原因必须是校验失败：参数绑定错误、网络错误等都不算数
+            if ($out -notmatch 'SHA256 校验失败') { $out; throw "错误：拒绝原因不是校验失败（退出码 $LASTEXITCODE）" }
             if (Test-Path "$env:USERPROFILE\.local\bin\dld.exe") { throw "错误：拒绝后仍安装了二进制" }
             Write-Host "负向测试通过：篡改被拒绝且未安装"
+            # 子进程退出码非零是预期行为，清零防止 pwsh 包装把步骤判失败
+            $LASTEXITCODE = 0
           } finally {
             Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
           }
@@ -142,6 +146,7 @@ jobs:
       - name: 探针失败自动开 issue（去重）
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           TITLE="安装验证失败（${{ github.event_name }}）"
           # 已存在同标题 open issue 则跳过，避免 schedule 连续失败每天刷屏
