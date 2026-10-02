@@ -74,7 +74,7 @@ impl DaLeDouClient {
                 .await
             {
                 Ok(r) => r,
-                Err(e) => bail!("HTTP 请求失败 [{url}]: {e}"),
+                Err(e) => bail!("HTTP 请求失败：{e}"),
             };
 
             let status = response.status();
