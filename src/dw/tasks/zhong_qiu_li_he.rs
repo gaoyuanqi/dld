@@ -34,8 +34,8 @@ pub async fn run(d: &DaLeDou) {
         }
     };
 
-    // 不在活动时间
-    if data.result == "-1" {
+    // {"result":"-2","msg":"很抱歉，系统繁忙，请稍后再试!"}
+    if data.result == "-2" {
         return;
     }
 
