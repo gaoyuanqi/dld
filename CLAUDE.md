@@ -25,6 +25,13 @@ Q宠大乐斗个人版代玩辅助
 - 新文件用 `OpenOptions::mode(0600)` 创建即收紧；已存在文件必须显式 `set_permissions` 收紧（`mode` 只对新文件生效）
 - 启动时幂等收紧，覆盖老用户升级前创建的宽松权限文件
 
+## 安装脚本
+
+- SHA256SUMS 仅发布 GitHub（独立信任根），Gitee 侧不携带校验文件
+- 校验失败必须 fail-closed 拒绝安装；显式跳过开关（`SKIP_VERIFY=1` / `-SkipVerify`）默认关闭，不得静默降级
+- 脚本改动后验证：CI 自动跑 dash -n / PowerShell Parser 语法检查；行为变更需手动 dispatch「安装验证」workflow 实测
+- 负向测试必须断言拒绝原因（校验失败），仅断言退出码会掩盖参数/网络错误
+
 ## HTTP 请求
 
 - 大乐斗接口返回 GBK 编码 JSON，解码用 `encoding_rs::GBK.decode()`
@@ -91,6 +98,7 @@ type: 中文描述
 - 执行 `cargo fmt && cargo clippy -- -D warnings && cargo test`
 - 提交 `chore: 版本号 x.y.z`，打 tag `vx.y.z` 并推送 main 与 tag
 - tag 与版本号必须一致（release.yml 会校验），推 tag 即触发公开 Release，推送前需用户确认
+- tag 必须打在 main 上的 commit：tag 指向分支外 commit 时 GitHub Actions 静默不触发 Release workflow
 
 # 代码实现
 
