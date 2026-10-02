@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Result, bail};
 use directories::ProjectDirs;
 
+/// 项目本地数据目录路径集合
 #[derive(Clone, Debug)]
 pub struct Paths {
     data_dir: PathBuf,

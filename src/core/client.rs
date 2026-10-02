@@ -35,6 +35,7 @@ pub fn default_http_client() -> Result<Client> {
     Ok(client)
 }
 
+/// 大乐斗 HTTP 客户端：发起 GET 请求，自动处理 GBK 解码和 Cookie 状态
 pub struct DaLeDouClient {
     cookie: String,
     client: Client,

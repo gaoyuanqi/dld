@@ -87,6 +87,7 @@ use crate::dw::daledou::DaLeDou;
 /// `all()` 列表、`run_task` 分发）自动同步，避免漏登记
 macro_rules! tasks {
     ($($任务:ident => $模块:ident),* $(,)?) => {
+        /// 玩法任务枚举，变体由 tasks! 宏统一登记
         #[derive(Clone, Debug)]
         pub enum Task {
             $($任务),*
