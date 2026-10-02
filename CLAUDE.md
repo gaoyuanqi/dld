@@ -15,6 +15,9 @@ Q宠大乐斗个人版代玩辅助
 - 优先用 `let-else` 和 `?` 提前返回，避免深层嵌套
 - 注释和文档字符串使用中文
 - 文档字符串（`///`、`//!`）末尾不加中文句号
+- 每次改动后执行 `cargo fmt && cargo clippy -- -D warnings && cargo test`，警告视为错误
+- `.with_context()`：给底层错误附加上下文，不丢原始信息。用于 I/O、解析失败
+- `bail!()`：自己造新错误直接返回。用于业务逻辑判断
 
 # 关键模式
 
@@ -36,27 +39,25 @@ Q宠大乐斗个人版代玩辅助
 
 - 大乐斗接口返回 GBK 编码 JSON，解码用 `encoding_rs::GBK.decode()`
 - 接口返回码 `result = "-5"` → Cookie 失效；`result = "-10086"` → 系统维护
+- reqwest `.send()` 失败的错误信息自带 URL（`error sending request for url (…)`），错误文案中无需再拼接 URL
 
 ## 配置管理
 
 ### 全局配置 vs 账号配置
 
-- **全局配置**：`<data_dir>/global_config.json`，所有账号共享（如兑换码、八卦迷阵方向）
-- **账号配置**：`<data_dir>/config/<qq>.json`，每 QQ 独享（如矿洞楼层、模式）
+- **全局配置**：`<data_dir>/global_config.json`，所有账号共享（如兑换码、八卦迷阵方向），代码在 `src/core/config/global.rs`
+- **账号配置**：`<data_dir>/config/<qq>.json`，每 QQ 独享（如矿洞楼层、模式），代码在 `src/core/config/account.rs`
+- 入口 `config.rs` 通过 `pub use` 重导出，外部路径保持 `crate::core::config::Xxx` 不变
+- `validate_range!` 宏定义在 `config.rs` 顶部，必须位于子模块声明之前（宏文本作用域），不得移到文件后半
 
 ### 新增配置
 
 1. 定义配置结构体，派生 `Debug, Default, Deserialize, Serialize`，加 `#[serde(default)]`
-2. `impl UpdatableConfig for XxxConfig`，实现 `section_title()`
+2. 子结构体挂到 `GlobalConfig` 或 `AccountConfig` 下即可；新增顶层配置类型才需要 `impl UpdatableConfig` 并实现 `section_title()`（目前仅全局/账号两种，几乎不会新增）
 3. 需要字段取值范围校验时 override `validate()`，范围校验用 `validate_range!` 宏，其余用 `bail!()`
 4. 子结构体的 `validate()` 不会自动被调，需在父结构体的 `validate()` 里手动 `self.xxx.validate()?;`
 5. `load`/`update`/`create_default` 由 trait 默认实现提供
 6. `dld 同步配置` 同时更新全局配置和所有已登记账号的配置
-
-### with_context vs bail
-
-- `.with_context()`：给底层错误附加上下文，不丢原始信息。用于 I/O、解析失败
-- `bail!()`：自己造新错误直接返回。用于业务逻辑判断
 
 ## 任务执行
 
@@ -65,6 +66,13 @@ Q宠大乐斗个人版代玩辅助
 - 任务执行完成后统一打印成功/失败统计和耗时：`5/5 个账号全部执行成功，耗时 12.3s`
 - 失败时显示 QQ 和错误原因，便于定位
 - 任务完成后自动清理过期日志（按 `日志保留天数`）
+
+### 新增任务
+
+- 任务模块放 `src/dw/tasks/<拼音>.rs`，在 `tasks.rs` 的 `tasks!` 宏调用中加一行 `任务名 => 模块名,`
+- 任务模块文件顶部写 `//!` 模块文档（玩法名称及一句话说明）
+- 枚举变体、`Task::all()`、`run_task` 分发三处自动生成，无需手写
+- 同步更新 `test_task_all_count` 中的任务数量断言
 
 ## Gitee 镜像
 
@@ -99,10 +107,6 @@ type: 中文描述
 - 提交 `chore: 版本号 x.y.z`，打 tag `vx.y.z` 并推送 main 与 tag
 - tag 与版本号必须一致（release.yml 会校验），推 tag 即触发公开 Release，推送前需用户确认
 - tag 必须打在 main 上的 commit：tag 指向分支外 commit 时 GitHub Actions 静默不触发 Release workflow
-
-# 代码实现
-
-- 每次改动后执行 `cargo fmt && cargo clippy -- -D warnings && cargo test`，警告视为错误
 
 # TDD
 
