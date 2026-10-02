@@ -8,25 +8,33 @@ use crate::dw::daledou::DaLeDou;
 
 const TASK: &str = "刮刮卡";
 
+#[derive(Deserialize)]
+struct Query {
+    result: String,
+    #[serde(default)]
+    msg: String,
+    #[serde(default)]
+    active_info: Vec<ActiveInfo>,
+    #[serde(default, rename = "cardNum")]
+    card_num: String, // 刮刮卡数量
+    #[serde(default, rename = "awardInfo")]
+    award_info: Vec<AwardInfo>, // 刮卡奖励
+}
+
+#[derive(Deserialize)]
+struct ActiveInfo {
+    id: String,
+    state: String,
+    desc: String,
+}
+
+#[derive(Deserialize)]
+struct AwardInfo {
+    goods_name: String, // 奖励名称
+    num: String,        // 奖励数量
+}
+
 pub async fn run(d: &DaLeDou) {
-    #[derive(Deserialize)]
-    struct Query {
-        result: String,
-        #[serde(default)]
-        msg: String,
-        #[serde(default)]
-        active_info: Vec<ActiveInfo>,
-        #[serde(default, rename = "cardNum")]
-        card_num: String, // 刮刮卡数量
-    }
-
-    #[derive(Deserialize)]
-    struct ActiveInfo {
-        id: String,
-        state: String,
-        desc: String,
-    }
-
     let data: Query = match d.get("cmd=newAct&subtype=139").await {
         Ok(v) => v,
         Err(e) => {
@@ -100,15 +108,9 @@ async fn 领取(d: &DaLeDou, id: &str, desc: &str) {
 }
 
 async fn 刮卡(d: &DaLeDou, card_num: u32) {
-    #[derive(Deserialize)]
-    struct Response {
-        result: String,
-        msg: String,
-    }
-
     for _ in 0..card_num {
         // 刮卡
-        let data: Response = match d.get("cmd=newAct&subtype=139&op=1").await {
+        let data: Query = match d.get("cmd=newAct&subtype=139&op=1").await {
             Ok(v) => v,
             Err(e) => {
                 d.log(TASK, &format!("{e}"));
@@ -116,9 +118,19 @@ async fn 刮卡(d: &DaLeDou, card_num: u32) {
             }
         };
 
-        d.log(TASK, &data.msg);
         if data.result != "0" {
+            d.log(TASK, &data.msg);
             return;
         }
+
+        let Some(award) = data.award_info.first() else {
+            d.log(TASK, "刮卡成功但返回中没有奖励数据");
+            return;
+        };
+
+        d.log(
+            TASK,
+            &format!("恭喜您刮出了{}*{}", award.goods_name, award.num),
+        );
     }
 }
