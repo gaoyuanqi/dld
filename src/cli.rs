@@ -379,6 +379,11 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
+    /// 领取职业挑战排行奖励
+    挑战领奖 {
+        #[command(flatten)]
+        qq: QqArg,
+    },
     /// 领取当天和累计奖励
     斗境探秘 {
         #[command(flatten)]
@@ -542,6 +547,7 @@ pub async fn parse_args() -> Result<()> {
         Command::登录有礼 { qq } => app.run_task(Task::登录有礼, qq.qq).await?,
         Command::徽章战令 { qq } => app.run_task(Task::徽章战令, qq.qq).await?,
         Command::职业挑战 { qq } => app.run_task(Task::职业挑战, qq.qq).await?,
+        Command::挑战领奖 { qq } => app.run_task(Task::挑战领奖, qq.qq).await?,
         Command::斗境探秘 { qq } => app.run_task(Task::斗境探秘, qq.qq).await?,
         Command::深渊秘宝 { qq } => app.run_task(Task::深渊秘宝, qq.qq).await?,
         Command::活跃礼包 { qq } => app.run_task(Task::活跃礼包, qq.qq).await?,

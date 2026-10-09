@@ -60,6 +60,7 @@ mod shi_er_gong;
 mod shi_jie_shu;
 mod shi_kong_yi_ji;
 mod ti_guan;
+mod tiao_zhan_ling_jiang;
 mod wa_wa_ji;
 mod wen_ding_tian_xia;
 mod wo_de_bang_pai;
@@ -173,6 +174,7 @@ tasks! {
     登录有礼 => deng_lu_you_li,
     徽章战令 => hui_zhang_zhan_ling,
     职业挑战 => zhi_ye_tiao_zhan,
+    挑战领奖 => tiao_zhan_ling_jiang,
     斗境探秘 => dou_jing_tan_mi,
     深渊秘宝 => shen_yuan_mi_bao,
     活跃礼包 => huo_yue_li_bao,
@@ -199,7 +201,7 @@ mod tests {
     // 任务列表数量：锁定登记完整性，防止重构时漏任务
     #[test]
     fn test_task_all_count() {
-        assert_eq!(Task::all().len(), 80);
+        assert_eq!(Task::all().len(), 81);
     }
 
     // 任务列表不允许重复
