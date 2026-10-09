@@ -185,135 +185,6 @@ async fn is_finish_time(d: &DaLeDou) -> bool {
     Utc::now().timestamp() >= off_season
 }
 
-async fn 排名奖励(d: &DaLeDou) {
-    // 领取奖励
-    let data: Response = match d.get("cmd=spacerelic&op=getrank").await {
-        Ok(v) => v,
-        Err(e) => {
-            d.log(TASK, &format!("{e}"));
-            return;
-        }
-    };
-
-    d.log(TASK, &data.msg);
-}
-
-async fn 遗迹商店(d: &DaLeDou) {
-    #[derive(Deserialize)]
-    struct Shop {
-        result: String,
-        msg: String,
-        score: String, // 总积分
-        shopinfo1: Vec<Info>,
-        shopinfo2: Vec<Info>,
-    }
-
-    #[derive(Deserialize)]
-    struct Info {
-        id: String,
-        name: String,
-        score: String,  // 消耗积分
-        remain: String, // 剩余可兑换
-    }
-
-    // 遗迹商店
-    let data: Shop = match d.get("cmd=spacerelic&op=shop").await {
-        Ok(v) => v,
-        Err(e) => {
-            d.log(TASK, &format!("{e}"));
-            return;
-        }
-    };
-
-    if data.result != "0" {
-        d.log(TASK, &data.msg);
-        return;
-    }
-
-    let mut score: u32 = match data.score.parse() {
-        Ok(v) => v,
-        Err(e) => {
-            d.log(TASK, &format!("解析 score 字段失败：{e}"));
-            return;
-        }
-    };
-
-    if score < 200 {
-        return;
-    }
-
-    // 合并两个区的商品，按兑换优先级排序：舆图 → 日引石 → 月引石 → 星引石，同类型特惠区优先
-    let mut items: Vec<&Info> = data.shopinfo1.iter().chain(data.shopinfo2.iter()).collect();
-    let priority = ["4", "8", "1", "2", "3", "5", "6", "7"];
-    items.sort_by_key(|item| {
-        priority
-            .iter()
-            .position(|&p| p == item.id.as_str())
-            .unwrap_or(usize::MAX)
-    });
-
-    for item in &items {
-        if item.remain == "0" {
-            continue;
-        }
-
-        let cost: u32 = match item.score.parse() {
-            Ok(v) => v,
-            Err(e) => {
-                d.log(TASK, &format!("解析 {} 单价失败：{e}", item.name));
-                continue;
-            }
-        };
-
-        if cost == 0 {
-            d.log(TASK, &format!("{} 单价为：{cost}", item.name));
-            continue;
-        }
-
-        if score < cost {
-            continue;
-        }
-
-        let remain: u32 = match item.remain.parse() {
-            Ok(v) => v,
-            Err(e) => {
-                d.log(TASK, &format!("解析 {} 剩余数量失败：{e}", item.name));
-                continue;
-            }
-        };
-
-        let max = remain.min(score / cost);
-        let (tens, ones) = (max / 10, max % 10);
-        score -= cost * max;
-
-        for _ in 0..tens {
-            兑换(d, &item.name, &item.id, 10).await;
-        }
-        for _ in 0..ones {
-            兑换(d, &item.name, &item.id, 1).await;
-        }
-
-        if score < 200 {
-            return;
-        }
-    }
-}
-
-async fn 兑换(d: &DaLeDou, name: &str, id: &str, num: u8) {
-    // 兑换
-    let cmd = format!("cmd=spacerelic&op=buy&id={id}&num={num}");
-    let data: Response = match d.get(&cmd).await {
-        Ok(v) => v,
-        Err(e) => {
-            d.log(TASK, &format!("{e}"));
-            return;
-        }
-    };
-
-    d.log(TASK, &format!("{name}*{num} => {}", data.msg));
-    time::sleep(Duration::from_millis(200)).await;
-}
-
 async fn 异兽洞窟(d: &DaLeDou) {
     #[derive(Deserialize)]
     struct Monster {
@@ -492,4 +363,133 @@ async fn 领取(d: &DaLeDou, t: &str, id: &str) {
     };
 
     d.log(TASK, &data.msg);
+}
+
+async fn 排名奖励(d: &DaLeDou) {
+    // 领取奖励
+    let data: Response = match d.get("cmd=spacerelic&op=getrank").await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    d.log(TASK, &data.msg);
+}
+
+async fn 遗迹商店(d: &DaLeDou) {
+    #[derive(Deserialize)]
+    struct Shop {
+        result: String,
+        msg: String,
+        score: String, // 总积分
+        shopinfo1: Vec<Info>,
+        shopinfo2: Vec<Info>,
+    }
+
+    #[derive(Deserialize)]
+    struct Info {
+        id: String,
+        name: String,
+        score: String,  // 消耗积分
+        remain: String, // 剩余可兑换
+    }
+
+    // 遗迹商店
+    let data: Shop = match d.get("cmd=spacerelic&op=shop").await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    if data.result != "0" {
+        d.log(TASK, &data.msg);
+        return;
+    }
+
+    let mut score: u32 = match data.score.parse() {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("解析 score 字段失败：{e}"));
+            return;
+        }
+    };
+
+    if score < 200 {
+        return;
+    }
+
+    // 合并两个区的商品，按兑换优先级排序：舆图 → 日引石 → 月引石 → 星引石，同类型特惠区优先
+    let mut items: Vec<&Info> = data.shopinfo1.iter().chain(data.shopinfo2.iter()).collect();
+    let priority = ["4", "8", "1", "2", "3", "5", "6", "7"];
+    items.sort_by_key(|item| {
+        priority
+            .iter()
+            .position(|&p| p == item.id.as_str())
+            .unwrap_or(usize::MAX)
+    });
+
+    for item in &items {
+        if item.remain == "0" {
+            continue;
+        }
+
+        let cost: u32 = match item.score.parse() {
+            Ok(v) => v,
+            Err(e) => {
+                d.log(TASK, &format!("解析 {} 单价失败：{e}", item.name));
+                continue;
+            }
+        };
+
+        if cost == 0 {
+            d.log(TASK, &format!("{} 单价为：{cost}", item.name));
+            continue;
+        }
+
+        if score < cost {
+            continue;
+        }
+
+        let remain: u32 = match item.remain.parse() {
+            Ok(v) => v,
+            Err(e) => {
+                d.log(TASK, &format!("解析 {} 剩余数量失败：{e}", item.name));
+                continue;
+            }
+        };
+
+        let max = remain.min(score / cost);
+        let (tens, ones) = (max / 10, max % 10);
+        score -= cost * max;
+
+        for _ in 0..tens {
+            兑换(d, &item.name, &item.id, 10).await;
+        }
+        for _ in 0..ones {
+            兑换(d, &item.name, &item.id, 1).await;
+        }
+
+        if score < 200 {
+            return;
+        }
+    }
+}
+
+async fn 兑换(d: &DaLeDou, name: &str, id: &str, num: u8) {
+    // 兑换
+    let cmd = format!("cmd=spacerelic&op=buy&id={id}&num={num}");
+    let data: Response = match d.get(&cmd).await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    d.log(TASK, &format!("{name}*{num} => {}", data.msg));
+    time::sleep(Duration::from_millis(200)).await;
 }
