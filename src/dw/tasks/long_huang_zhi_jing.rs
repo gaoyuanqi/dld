@@ -1,6 +1,8 @@
 //! 龙凰之境
 //!
-//! 报名龙渊赛区、挑战、领奖、兑换
+//! 领取：每月1~3号领取阵法库抽取次数奖励
+//!
+//! 报名：每月1~3号报名龙渊赛区
 //!
 //! 挑战：如果有剩余挑战次数且在战斗期则挑战一次最后一位
 //!
@@ -63,6 +65,7 @@ pub async fn run(d: &DaLeDou) {
     if data.signin == "0" {
         // 报名期
         if (1..=3).contains(&day) {
+            领取(d).await;
             报名(d).await;
         }
         return;
@@ -90,15 +93,17 @@ pub async fn run(d: &DaLeDou) {
     兑换(d).await;
 }
 
-/// 根据论武次数和位图找出可领取的奖励索引（1~5）
-/// 每档阈值：[1, 8, 18, 26, 36]，位图位为 0 表示未领取
-fn find_claimable_rewards(times: u32, flag: u32) -> Vec<u32> {
-    [1, 8, 18, 26, 36]
-        .iter()
-        .enumerate()
-        .filter(|&(i, &t)| times >= t && (flag >> i) & 1 == 0)
-        .map(|(i, _)| i as u32 + 1)
-        .collect()
+async fn 领取(d: &DaLeDou) {
+    // 领取阵法库抽取次数奖励
+    let data: Response = match d.get("cmd=dragon&op=getprice").await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    d.log(TASK, &data.msg);
 }
 
 async fn 报名(d: &DaLeDou) {
@@ -225,6 +230,17 @@ async fn 领奖(d: &DaLeDou) {
 
         d.log(TASK, &data.msg);
     }
+}
+
+/// 根据论武次数和位图找出可领取的奖励索引（1~5）
+/// 每档阈值：[1, 8, 18, 26, 36]，位图位为 0 表示未领取
+fn find_claimable_rewards(times: u32, flag: u32) -> Vec<u32> {
+    [1, 8, 18, 26, 36]
+        .iter()
+        .enumerate()
+        .filter(|&(i, &t)| times >= t && (flag >> i) & 1 == 0)
+        .map(|(i, _)| i as u32 + 1)
+        .collect()
 }
 
 async fn 兑换(d: &DaLeDou) {
