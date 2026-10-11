@@ -10,12 +10,14 @@ use std::time::Instant;
 use anyhow::{Context, Result};
 use reqwest::Client;
 use tokio::sync::Semaphore;
-use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::channel;
 
 use crate::core::accounts::{Account, AccountStore};
 use crate::core::client::{self, DaLeDouClient};
 use crate::core::config::{AccountConfig, GlobalConfig, UpdatableConfig};
-use crate::core::log::{LogMessage, LogWriter, Logger, cleanup_old_logs, remove_account_logs};
+use crate::core::log::{
+    LOG_CHANNEL_CAPACITY, LogMessage, LogWriter, Logger, cleanup_old_logs, remove_account_logs,
+};
 use crate::core::paths::Paths;
 use crate::dw::daledou::DaLeDou;
 use crate::dw::tasks::{self, Task};
@@ -117,7 +119,7 @@ impl App {
         let started = Instant::now();
 
         // 日志通道：各账号任务发送日志，单一 writer 统一输出并落盘
-        let (log_tx, log_rx) = unbounded_channel::<LogMessage>();
+        let (log_tx, log_rx) = channel::<LogMessage>(LOG_CHANNEL_CAPACITY);
         let log_paths = self.paths.clone();
         let log_writer = tokio::spawn(async move {
             LogWriter::new(log_rx, log_paths.logs_dir()).run().await;

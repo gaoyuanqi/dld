@@ -1,4 +1,4 @@
-//! 账号级别日志记录器：任务发消息到无界通道，单一 [`LogWriter`] 统一输出并落盘
+//! 账号级别日志记录器：任务发消息到有界通道，单一 [`LogWriter`] 统一输出并落盘
 //!
 //! 每个 [`Logger`] 实例对应一个 QQ 账号，只负责向日志通道发送消息；
 //! [`LogWriter`] 消费通道消息，输出到控制台并写入 `<qq>/YYYY-MM-DD.log` 文件，
@@ -12,7 +12,11 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
 use chrono::{NaiveDate, NaiveDateTime};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::mpsc::{Receiver, Sender};
+
+/// 日志通道容量：足以容纳所有任务的日志突发，超出时丢弃新日志
+pub(crate) const LOG_CHANNEL_CAPACITY: usize = 1024;
 
 /// 待写入的日志消息
 #[derive(Debug)]
@@ -25,7 +29,7 @@ pub(crate) struct LogMessage {
 
 /// 账号级别日志记录器：向日志通道发送消息
 pub struct Logger {
-    tx: UnboundedSender<LogMessage>,
+    tx: Sender<LogMessage>,
     qq: String,
 }
 
@@ -33,7 +37,7 @@ impl Logger {
     /// 创建日志记录器
     ///
     /// 创建前校验日志目录可写，消息由 [`LogWriter`] 统一输出和落盘
-    pub(crate) fn new(logs_dir: &Path, qq: &str, tx: UnboundedSender<LogMessage>) -> Result<Self> {
+    pub(crate) fn new(logs_dir: &Path, qq: &str, tx: Sender<LogMessage>) -> Result<Self> {
         let log_dir = logs_dir.join(qq);
 
         // 确保日志目录存在
@@ -54,7 +58,7 @@ impl Logger {
         })
     }
 
-    /// 记录日志：发送消息到日志通道（通道关闭时静默丢弃，不影响任务执行）
+    /// 记录日志：发送消息到日志通道（已满时丢弃并提示、关闭时静默，不影响任务执行）
     pub fn log(&self, now: NaiveDateTime, task_name: &str, result: &str) {
         let msg = LogMessage {
             qq: self.qq.clone(),
@@ -62,19 +66,25 @@ impl Logger {
             task_name: task_name.to_string(),
             result: result.to_string(),
         };
-        let _ = self.tx.send(msg);
+        match self.tx.try_send(msg) {
+            Ok(()) => {}
+            Err(TrySendError::Full(_)) => {
+                eprintln!("[{}] 日志通道已满，丢弃一条日志", self.qq);
+            }
+            Err(TrySendError::Closed(_)) => {}
+        }
     }
 }
 
 /// 日志写入器：消费日志通道，控制台输出并落盘
 pub(crate) struct LogWriter {
-    rx: UnboundedReceiver<LogMessage>,
+    rx: Receiver<LogMessage>,
     logs_dir: PathBuf,
 }
 
 impl LogWriter {
     /// 创建日志写入器
-    pub(crate) fn new(rx: UnboundedReceiver<LogMessage>, logs_dir: &Path) -> Self {
+    pub(crate) fn new(rx: Receiver<LogMessage>, logs_dir: &Path) -> Self {
         Self {
             rx,
             logs_dir: logs_dir.to_path_buf(),
@@ -223,7 +233,7 @@ mod tests {
     #[tokio::test]
     async fn test_writer_persists_logs_in_order() {
         let dir = tempfile::tempdir().unwrap();
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (tx, rx) = tokio::sync::mpsc::channel(LOG_CHANNEL_CAPACITY);
         let writer = LogWriter::new(rx, dir.path());
 
         let logger = Logger::new(dir.path(), "123456", tx.clone()).unwrap();
@@ -243,11 +253,58 @@ mod tests {
         assert!(lines[1].contains("帮派任务：领取成功"));
     }
 
+    // 通道满时丢弃新日志，不阻塞任务
+    #[tokio::test]
+    async fn test_channel_full_drops_new_logs() {
+        let dir = tempfile::tempdir().unwrap();
+        let (tx, rx) = tokio::sync::mpsc::channel(2);
+        let writer = LogWriter::new(rx, dir.path());
+
+        let logger = Logger::new(dir.path(), "123456", tx.clone()).unwrap();
+        let now = Local::now().naive_local();
+        logger.log(now, "一", "1");
+        logger.log(now, "二", "2");
+        logger.log(now, "三", "3"); // 通道已满，被丢弃
+
+        drop(logger);
+        drop(tx);
+        writer.run().await;
+
+        let content = fs::read_to_string(log_file_path(dir.path(), "123456", now.date())).unwrap();
+        let lines: Vec<&str> = content.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("一：1"));
+        assert!(lines[1].contains("二：2"));
+    }
+
+    // 通道积压被消费后恢复，后续日志正常发送
+    #[tokio::test]
+    async fn test_channel_recovers_after_consume() {
+        let dir = tempfile::tempdir().unwrap();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(2);
+        let logger = Logger::new(dir.path(), "123456", tx).unwrap();
+        let now = Local::now().naive_local();
+
+        logger.log(now, "一", "1");
+        logger.log(now, "二", "2");
+        let first = rx.recv().await.unwrap();
+        assert_eq!(first.task_name, "一");
+
+        logger.log(now, "三", "3"); // 消费后腾出空间，发送成功
+
+        let second = rx.recv().await.unwrap();
+        let third = rx.recv().await.unwrap();
+        assert_eq!(second.task_name, "二");
+        assert_eq!(third.task_name, "三");
+        drop(logger);
+        drop(rx);
+    }
+
     // 不同账号的日志写入各自文件
     #[tokio::test]
     async fn test_writer_routes_logs_by_qq() {
         let dir = tempfile::tempdir().unwrap();
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let (tx, rx) = tokio::sync::mpsc::channel(LOG_CHANNEL_CAPACITY);
         let writer = LogWriter::new(rx, dir.path());
 
         let logger_a = Logger::new(dir.path(), "111", tx.clone()).unwrap();
