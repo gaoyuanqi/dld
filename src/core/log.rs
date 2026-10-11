@@ -1,9 +1,8 @@
-//! 账号级别日志记录器：控制台即时输出 + 文件同步落盘
+//! 账号级别日志记录器：任务发消息到无界通道，单一 [`LogWriter`] 统一输出并落盘
 //!
-//! 每个 [`Logger`] 实例对应一个 QQ 账号，日志按天写入 `<qq>.log` 文件，
+//! 每个 [`Logger`] 实例对应一个 QQ 账号，只负责向日志通道发送消息；
+//! [`LogWriter`] 消费通道消息，输出到控制台并写入 `<qq>/YYYY-MM-DD.log` 文件，
 //! 同时提供 [`cleanup_old_logs`] 按保留天数自动清理过期日志
-//!
-//! 每个 `Logger` 实例对应一个 QQ 账号
 //!
 //! 文件写入为每次打开→追加→关闭
 
@@ -13,19 +12,28 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
 use chrono::{NaiveDate, NaiveDateTime};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-/// 账号级别日志记录器
+/// 待写入的日志消息
+#[derive(Debug)]
+pub(crate) struct LogMessage {
+    pub(crate) qq: String,
+    pub(crate) now: NaiveDateTime,
+    pub(crate) task_name: String,
+    pub(crate) result: String,
+}
+
+/// 账号级别日志记录器：向日志通道发送消息
 pub struct Logger {
-    logs_dir: PathBuf,
+    tx: UnboundedSender<LogMessage>,
     qq: String,
 }
 
 impl Logger {
     /// 创建日志记录器
     ///
-    /// 日志文件路径：`<logs_dir>/<qq>/YYYY-MM-DD.log`
-    pub fn new(logs_dir: &Path, qq: &str) -> Result<Self> {
-        let logs_dir = logs_dir.to_path_buf();
+    /// 创建前校验日志目录可写，消息由 [`LogWriter`] 统一输出和落盘
+    pub(crate) fn new(logs_dir: &Path, qq: &str, tx: UnboundedSender<LogMessage>) -> Result<Self> {
         let log_dir = logs_dir.join(qq);
 
         // 确保日志目录存在
@@ -41,36 +49,69 @@ impl Logger {
         let _ = fs::remove_file(&test_file);
 
         Ok(Self {
-            logs_dir,
+            tx,
             qq: qq.to_string(),
         })
     }
 
-    /// 记录日志：控制台输出 + 文件写入
+    /// 记录日志：发送消息到日志通道（通道关闭时静默丢弃，不影响任务执行）
     pub fn log(&self, now: NaiveDateTime, task_name: &str, result: &str) {
-        println!(
-            "{}",
-            format_console_line(
-                &now.format("%Y-%m-%d %H:%M:%S").to_string(),
-                &self.qq,
-                task_name,
-                result,
-            )
-        );
-        self.send(now, task_name, result);
+        let msg = LogMessage {
+            qq: self.qq.clone(),
+            now,
+            task_name: task_name.to_string(),
+            result: result.to_string(),
+        };
+        let _ = self.tx.send(msg);
+    }
+}
+
+/// 日志写入器：消费日志通道，控制台输出并落盘
+pub(crate) struct LogWriter {
+    rx: UnboundedReceiver<LogMessage>,
+    logs_dir: PathBuf,
+}
+
+impl LogWriter {
+    /// 创建日志写入器
+    pub(crate) fn new(rx: UnboundedReceiver<LogMessage>, logs_dir: &Path) -> Self {
+        Self {
+            rx,
+            logs_dir: logs_dir.to_path_buf(),
+        }
+    }
+
+    /// 消费日志消息直到通道关闭，随后正常退出
+    pub(crate) async fn run(mut self) {
+        while let Some(msg) = self.rx.recv().await {
+            println!(
+                "{}",
+                format_console_line(
+                    &msg.now.format("%Y-%m-%d %H:%M:%S").to_string(),
+                    &msg.qq,
+                    &msg.task_name,
+                    &msg.result,
+                )
+            );
+            self.write(&msg);
+        }
     }
 
     /// 写入日志行到文件（每次打开→追加→关闭）
-    fn send(&self, now: NaiveDateTime, task_name: &str, result: &str) {
-        let line = format_file_line(&now.format("%H:%M:%S").to_string(), task_name, result);
-        let path = log_file_path(&self.logs_dir, &self.qq, now.date());
+    fn write(&self, msg: &LogMessage) {
+        let line = format_file_line(
+            &msg.now.format("%H:%M:%S").to_string(),
+            &msg.task_name,
+            &msg.result,
+        );
+        let path = log_file_path(&self.logs_dir, &msg.qq, msg.now.date());
 
         match OpenOptions::new().create(true).append(true).open(&path) {
             Ok(mut f) => {
                 let _ = writeln!(f, "{}", line);
             }
             Err(e) => {
-                eprintln!("[{}] 无法打开日志文件 {}：{}", self.qq, path.display(), e);
+                eprintln!("[{}] 无法打开日志文件 {}：{}", msg.qq, path.display(), e);
             }
         }
     }
@@ -151,7 +192,7 @@ fn do_cleanup(logs_dir: &Path, retention_days: u8) {
 mod tests {
     use std::path::PathBuf;
 
-    use chrono::NaiveDate;
+    use chrono::{Local, NaiveDate};
 
     use super::*;
 
@@ -176,6 +217,64 @@ mod tests {
         let date = NaiveDate::from_ymd_opt(2026, 6, 15).unwrap();
         let path = log_file_path(dir, "123456", date);
         assert_eq!(path, PathBuf::from("/tmp/dld/123456/2026-06-15.log"));
+    }
+
+    // 多条日志经通道落盘，顺序与发送顺序一致
+    #[tokio::test]
+    async fn test_writer_persists_logs_in_order() {
+        let dir = tempfile::tempdir().unwrap();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let writer = LogWriter::new(rx, dir.path());
+
+        let logger = Logger::new(dir.path(), "123456", tx.clone()).unwrap();
+        let now = Local::now().naive_local();
+        logger.log(now, "开始乐斗", "完成");
+        logger.log(now, "帮派任务", "领取成功");
+
+        // 关闭通道，writer 消费完所有消息后退出
+        drop(logger);
+        drop(tx);
+        writer.run().await;
+
+        let content = fs::read_to_string(log_file_path(dir.path(), "123456", now.date())).unwrap();
+        let lines: Vec<&str> = content.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("开始乐斗：完成"));
+        assert!(lines[1].contains("帮派任务：领取成功"));
+    }
+
+    // 不同账号的日志写入各自文件
+    #[tokio::test]
+    async fn test_writer_routes_logs_by_qq() {
+        let dir = tempfile::tempdir().unwrap();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let writer = LogWriter::new(rx, dir.path());
+
+        let logger_a = Logger::new(dir.path(), "111", tx.clone()).unwrap();
+        let logger_b = Logger::new(dir.path(), "222", tx.clone()).unwrap();
+        let now = Local::now().naive_local();
+        logger_a.log(now, "开始乐斗", "完成");
+        logger_b.log(now, "帮派任务", "领取成功");
+
+        drop(logger_a);
+        drop(logger_b);
+        drop(tx);
+        writer.run().await;
+
+        let file_a = log_file_path(dir.path(), "111", now.date());
+        let file_b = log_file_path(dir.path(), "222", now.date());
+        assert!(file_a.exists());
+        assert!(file_b.exists());
+        assert!(
+            fs::read_to_string(&file_a)
+                .unwrap()
+                .contains("开始乐斗：完成")
+        );
+        assert!(
+            fs::read_to_string(&file_b)
+                .unwrap()
+                .contains("帮派任务：领取成功")
+        );
     }
 
     // 保留 N 天：今天 + N-1 天前之内的日志保留，更旧的删除

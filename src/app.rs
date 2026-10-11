@@ -10,11 +10,12 @@ use std::time::Instant;
 use anyhow::{Context, Result};
 use reqwest::Client;
 use tokio::sync::Semaphore;
+use tokio::sync::mpsc::unbounded_channel;
 
 use crate::core::accounts::{Account, AccountStore};
 use crate::core::client::{self, DaLeDouClient};
 use crate::core::config::{AccountConfig, GlobalConfig, UpdatableConfig};
-use crate::core::log::{Logger, cleanup_old_logs, remove_account_logs};
+use crate::core::log::{LogMessage, LogWriter, Logger, cleanup_old_logs, remove_account_logs};
 use crate::core::paths::Paths;
 use crate::dw::daledou::DaLeDou;
 use crate::dw::tasks::{self, Task};
@@ -115,6 +116,13 @@ impl App {
         let semaphore = Arc::new(Semaphore::new(max_concurrency));
         let started = Instant::now();
 
+        // 日志通道：各账号任务发送日志，单一 writer 统一输出并落盘
+        let (log_tx, log_rx) = unbounded_channel::<LogMessage>();
+        let log_paths = self.paths.clone();
+        let log_writer = tokio::spawn(async move {
+            LogWriter::new(log_rx, log_paths.logs_dir()).run().await;
+        });
+
         let total = accounts.len();
         let handles: Vec<_> = accounts
             .into_iter()
@@ -125,13 +133,14 @@ impl App {
                 let paths = self.paths.clone();
                 let task = task.clone();
                 let global_config = global_config.clone();
+                let log_tx = log_tx.clone();
                 let handle = tokio::spawn(async move {
                     let _permit = sem.acquire_owned().await;
 
                     let config_path = paths.config_dir().join(format!("{}.json", acc.qq));
                     let config = AccountConfig::load(&config_path)?;
 
-                    let logger = Logger::new(paths.logs_dir(), &acc.qq)?;
+                    let logger = Logger::new(paths.logs_dir(), &acc.qq, log_tx)?;
                     let client = DaLeDouClient::new(&http_client, &acc.record.cookie);
                     let d = DaLeDou::new(&acc.qq, client, logger, global_config, config);
 
@@ -158,6 +167,11 @@ impl App {
                 _ => {}
             }
         }
+
+        // 所有账号任务已结束，关闭日志通道并等待日志全部落盘
+        drop(log_tx);
+        let _ = log_writer.await;
+
         let elapsed = started.elapsed();
         let succeeded = total - failures.len();
         if failures.is_empty() {
