@@ -34,6 +34,7 @@ pub struct AccountConfig {
     pub 深渊之潮: ShenYuanZhiChao,
     pub 龙凰之境: LongHuangZhiJing,
     pub 我的帮派: WoDeBangPai,
+    pub 时空遗迹: ShiKongYiJiAccount,
     pub 门派邀请赛: MenPaiYaoQingSai,
     pub 开学季: KaiXueJi,
     pub 吉利兑: JiLiDui,
@@ -338,7 +339,7 @@ pub struct WenDingTianXia {
 }
 
 /// 攻占区域
-#[derive(Debug, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub enum Region {
     #[serde(rename = "东海")]
     #[default]
@@ -663,7 +664,7 @@ pub struct ShenYuanMiJing {
 }
 
 /// 深渊秘境副本
-#[derive(Debug, Default, Deserialize, Serialize, PartialEq, Clone, Copy)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub enum ShenYuanMiJingCopy {
     #[serde(rename = "崎岖斗界")]
     #[default]
@@ -767,6 +768,97 @@ impl WoDeBangPai {
     }
 }
 
+/// 时空遗迹
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct ShiKongYiJiAccount {
+    /// 异兽洞窟玩法配置
+    pub 异兽洞窟: YiShouDongKu,
+}
+
+/// 异兽洞窟玩法配置
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct YiShouDongKu {
+    /// 最多打到哪个BOSS
+    #[serde(rename = "最多打到哪个BOSS")]
+    pub max_boss: YiShouDongKuBoss,
+}
+
+/// 异兽洞窟BOSS
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+pub enum YiShouDongKuBoss {
+    #[serde(rename = "异兽幼崽")]
+    异兽幼崽,
+    #[serde(rename = "异兽战士")]
+    异兽战士,
+    #[serde(rename = "异兽将领")]
+    异兽将领,
+    #[serde(rename = "异兽元帅")]
+    异兽元帅,
+    #[serde(rename = "异兽母巢")]
+    异兽母巢,
+    #[serde(rename = "王级异兽幼崽")]
+    王级异兽幼崽,
+    #[serde(rename = "王级异兽战士")]
+    王级异兽战士,
+    #[serde(rename = "王级异兽将领")]
+    王级异兽将领,
+    #[serde(rename = "王级异兽元帅")]
+    王级异兽元帅,
+    #[serde(rename = "王级异兽母巢")]
+    #[default]
+    王级异兽母巢,
+    #[serde(rename = "皇级异兽幼崽")]
+    皇级异兽幼崽,
+    #[serde(rename = "皇级异兽战士")]
+    皇级异兽战士,
+    #[serde(rename = "皇级异兽将领")]
+    皇级异兽将领,
+    #[serde(rename = "皇级异兽元帅")]
+    皇级异兽元帅,
+    #[serde(rename = "皇级异兽母巢")]
+    皇级异兽母巢,
+    #[serde(rename = "帝级异兽幼崽")]
+    帝级异兽幼崽,
+    #[serde(rename = "帝级异兽战士")]
+    帝级异兽战士,
+    #[serde(rename = "帝级异兽将领")]
+    帝级异兽将领,
+    #[serde(rename = "帝级异兽元帅")]
+    帝级异兽元帅,
+    #[serde(rename = "帝级异兽母巢")]
+    帝级异兽母巢,
+}
+
+impl YiShouDongKuBoss {
+    /// 转换为接口参数id
+    pub(crate) fn api_value(&self) -> u8 {
+        match self {
+            Self::异兽幼崽 => 1,
+            Self::异兽战士 => 2,
+            Self::异兽将领 => 3,
+            Self::异兽元帅 => 4,
+            Self::异兽母巢 => 5,
+            Self::王级异兽幼崽 => 6,
+            Self::王级异兽战士 => 7,
+            Self::王级异兽将领 => 8,
+            Self::王级异兽元帅 => 9,
+            Self::王级异兽母巢 => 10,
+            Self::皇级异兽幼崽 => 11,
+            Self::皇级异兽战士 => 12,
+            Self::皇级异兽将领 => 13,
+            Self::皇级异兽元帅 => 14,
+            Self::皇级异兽母巢 => 15,
+            Self::帝级异兽幼崽 => 16,
+            Self::帝级异兽战士 => 17,
+            Self::帝级异兽将领 => 18,
+            Self::帝级异兽元帅 => 19,
+            Self::帝级异兽母巢 => 20,
+        }
+    }
+}
+
 /// 门派邀请赛
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
@@ -800,7 +892,7 @@ pub struct KaiXueJi {
 }
 
 /// 疯狂许愿具体奖励
-#[derive(Debug, Default, Deserialize, Serialize, PartialEq, Clone, Copy)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub enum FengKuangXuYuan {
     #[serde(rename = "神兵")]
     神兵,
@@ -930,8 +1022,8 @@ pub struct DengLuShangDian {
     pub 兑换: DengLuShangDianExchange,
 }
 
-/// 兑换商店兑换材料
-#[derive(Debug, Default, Deserialize, Serialize, PartialEq, Clone, Copy)]
+/// 登录商店兑换材料
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub enum DengLuShangDianExchange {
     #[serde(rename = "黄金卷轴")]
     黄金卷轴,
@@ -1012,6 +1104,10 @@ mod tests {
         assert_eq!(config.历练.乐斗顺序.len(), 9);
         assert_eq!(config.历练.乐斗顺序[0], LiLianBoss::XiongShi);
         assert_eq!(config.历练.乐斗顺序[8], LiLianBoss::XiangXian);
+        assert_eq!(
+            config.时空遗迹.异兽洞窟.max_boss,
+            YiShouDongKuBoss::王级异兽母巢
+        );
     }
 
     // 已有合法配置文件，读取后保留用户值
@@ -1091,6 +1187,18 @@ mod tests {
     fn test_account_config_load_hui_wu_range_ok() {
         let config = load_account(r#"{"会武": {"兑换真黄金卷轴数量": 100}}"#).unwrap();
         assert_eq!(config.会武.兑换真黄金卷轴数量, 100);
+    }
+
+    // 时空遗迹 BOSS 上限读取与接口参数转换
+    #[test]
+    fn test_shikong_boss_max_load_and_api_value() {
+        let json = r#"{"时空遗迹": {"异兽洞窟": {"最多打到哪个BOSS": "帝级异兽母巢"}}}"#;
+        let config = load_account(json).unwrap();
+        let boss = config.时空遗迹.异兽洞窟.max_boss;
+        assert_eq!(boss, YiShouDongKuBoss::帝级异兽母巢);
+        assert_eq!(boss.api_value(), 20);
+        assert_eq!(YiShouDongKuBoss::异兽幼崽.api_value(), 1);
+        assert_eq!(YiShouDongKuBoss::王级异兽母巢.api_value(), 10);
     }
 
     // 龙凰之境兑换上限超上限报错
@@ -1712,7 +1820,7 @@ mod tests {
             FengKuangXuYuan::强化,
         ];
         for v in variants {
-            let name = serde_json::to_value(v)
+            let name = serde_json::to_value(&v)
                 .unwrap()
                 .as_str()
                 .unwrap()
@@ -1737,7 +1845,7 @@ mod tests {
             DengLuShangDianExchange::奔流气息,
         ];
         for v in variants {
-            let name = serde_json::to_value(v)
+            let name = serde_json::to_value(&v)
                 .unwrap()
                 .as_str()
                 .unwrap()

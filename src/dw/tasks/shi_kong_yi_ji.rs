@@ -2,7 +2,7 @@
 //!
 //! 八卦迷阵：优先根据首通玩家名称提取，否则使用全局配置
 //!
-//! 异兽洞窟：如果全部通关则扫荡最高BOSS，否则按顺序挑战第一个有血量的BOSS
+//! 异兽洞窟：按顺序挑战第一个有血量的BOSS，全部通关则扫荡最高BOSS；最高BOSS由账号配置「最多打到哪个BOSS」决定
 //!
 //! 联合征伐：挑战
 //!
@@ -194,7 +194,8 @@ async fn 异兽洞窟(d: &DaLeDou) {
         num: String,
     }
 
-    for id in 1..=20 {
+    let max_id: u8 = d.config().时空遗迹.异兽洞窟.max_boss.api_value();
+    for id in 1..=max_id {
         // 异兽洞窟
         let cmd = format!("cmd=spacerelic&op=monster&id={id}");
         let data: Monster = match d.get(&cmd).await {
@@ -218,7 +219,7 @@ async fn 异兽洞窟(d: &DaLeDou) {
         if data.blood != "0" {
             挑战(d, id).await;
             return;
-        } else if id == 20 {
+        } else if id == max_id {
             扫荡(d, id).await;
             return;
         }
