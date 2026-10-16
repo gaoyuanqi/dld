@@ -47,7 +47,7 @@ impl DaLeDou {
         let json = self.client.get(cmd_path).await?;
         let data = match serde_json::from_value(json) {
             Ok(v) => v,
-            Err(e) => bail!("解析响应失败 [{cmd_path}]: {e}"),
+            Err(e) => bail!("响应格式异常（{cmd_path}）：{e}"),
         };
         Ok(data)
     }

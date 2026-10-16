@@ -68,7 +68,7 @@ impl DaLeDouClient {
         let json = loop {
             attempt += 1;
             let json = self.fetch_json(&url).await?;
-            if self.detect_result_code(&json)? && attempt < 3 {
+            if self.should_retry(&json)? && attempt < 3 {
                 time::sleep(Duration::from_millis(100)).await;
                 continue;
             }
@@ -93,26 +93,26 @@ impl DaLeDouClient {
 
         let status = response.status();
         if !status.is_success() {
-            bail!("接口返回非2xx状态码：状态码={}，URL={}", status, url);
+            bail!("接口返回异常状态码（{url}）：{status}");
         }
 
         let bytes = response.bytes().await?;
         // 部分接口返回空响应体（如玩法临时下线），给出明确错误而非「JSON 解析失败」
         if is_empty_body(&bytes) {
-            bail!("{url} 接口返回空响应，可能不在活动时间");
+            bail!("接口返回空响应（{url}），可能不在活动时间");
         }
 
         match decode_gbk_to_json(&bytes) {
             Ok(v) => Ok(v),
-            Err(e) => bail!("{url} 接口返回的 JSON 含非法字符：「{e}」"),
+            Err(e) => bail!("接口返回的 JSON 含非法字符（{url}）：「{e}」"),
         }
     }
 
-    /// 检测 result 状态码语义，返回 true 表示系统繁忙可重试
+    /// 检测 result 状态码语义，返回 true 表示系统繁忙应重试
     ///
     /// - `result = "-5"` → 标记 Cookie 失效（结拜领斗币的特例除外）
     /// - `result = "-10086"` → 标记系统维护
-    fn detect_result_code(&self, json: &serde_json::Value) -> Result<bool> {
+    fn should_retry(&self, json: &serde_json::Value) -> Result<bool> {
         let result_code = json.get("result").and_then(|v| v.as_str());
 
         if let Some("-2") = result_code {
@@ -309,48 +309,48 @@ mod tests {
         repair_dirty_json,
     };
 
-    // ─── detect_result_code 测试 ───
+    // ─── should_retry 测试 ───
 
     // -2 且「系统繁忙」返回 true（可重试）
     #[test]
-    fn test_detect_result_code_busy_retry() {
+    fn test_should_retry_busy() {
         let client = DaLeDouClient::new(&default_http_client().unwrap(), "test");
         let json = serde_json::json!({"result": "-2", "msg": "系统繁忙"});
-        assert!(client.detect_result_code(&json).unwrap());
+        assert!(client.should_retry(&json).unwrap());
     }
 
     // -2 但非「系统繁忙」返回 false（不重试）
     #[test]
-    fn test_detect_result_code_minus2_not_busy() {
+    fn test_should_retry_minus2_not_busy() {
         let client = DaLeDouClient::new(&default_http_client().unwrap(), "test");
         let json = serde_json::json!({"result": "-2", "msg": "其他原因"});
-        assert!(!client.detect_result_code(&json).unwrap());
+        assert!(!client.should_retry(&json).unwrap());
     }
 
     // -5 标记 Cookie 失效并报错
     #[test]
-    fn test_detect_result_code_minus5_sets_invalid() {
+    fn test_should_retry_minus5_sets_invalid() {
         let client = DaLeDouClient::new(&default_http_client().unwrap(), "test");
         let json = serde_json::json!({"result": "-5", "msg": "登陆校验失败"});
-        assert!(client.detect_result_code(&json).is_err());
+        assert!(client.should_retry(&json).is_err());
         assert!(client.is_invalid());
     }
 
     // -5 特例（结拜领斗币）不标记失效不报错
     #[test]
-    fn test_detect_result_code_minus5_special_msg_ok() {
+    fn test_should_retry_minus5_special_msg_ok() {
         let client = DaLeDouClient::new(&default_http_client().unwrap(), "test");
         let json = serde_json::json!({"result": "-5", "msg": "你已经领取过本届斗币福利！"});
-        assert!(client.detect_result_code(&json).is_ok());
+        assert!(client.should_retry(&json).is_ok());
         assert!(!client.is_invalid());
     }
 
     // -10086 标记系统维护并报错
     #[test]
-    fn test_detect_result_code_maintenance() {
+    fn test_should_retry_maintenance() {
         let client = DaLeDouClient::new(&default_http_client().unwrap(), "test");
         let json = serde_json::json!({"result": "-10086", "msg": "维护中"});
-        assert!(client.detect_result_code(&json).is_err());
+        assert!(client.should_retry(&json).is_err());
         assert!(client.is_maintenance());
     }
 
