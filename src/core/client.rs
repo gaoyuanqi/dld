@@ -84,9 +84,14 @@ impl DaLeDouClient {
             }
 
             let bytes = response.bytes().await?;
+            // 部分接口返回空响应体（如玩法临时下线），给出明确错误而非「JSON 解析失败」
+            if is_empty_body(&bytes) {
+                bail!("{} 返回空响应，可能不在活动时间", url);
+            }
+
             let json = match decode_gbk_to_json(&bytes) {
                 Ok(v) => v,
-                Err(e) => bail!("JSON 解析失败 [{url}]: {e}"),
+                Err(e) => bail!("JSON 解析失败 [{url}]：「{e}」"),
             };
             let result_code = json.get("result").and_then(|v| v.as_str());
 
@@ -164,6 +169,11 @@ impl DaLeDouClient {
     pub fn is_maintenance(&self) -> bool {
         self.maintenance.load(Ordering::SeqCst)
     }
+}
+
+/// 响应体是否为空（0 字节或纯空白）
+fn is_empty_body(bytes: &[u8]) -> bool {
+    bytes.iter().all(u8::is_ascii_whitespace)
 }
 
 /// 修复接口返回的脏数据 JSON
@@ -282,7 +292,27 @@ fn decode_gbk_to_json(bytes: &[u8]) -> Result<serde_json::Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_gbk_to_json, preview_around, repair_dirty_json};
+    use super::{decode_gbk_to_json, is_empty_body, preview_around, repair_dirty_json};
+
+    // ─── is_empty_body 测试 ───
+
+    // 空响应体（0 字节）视为空
+    #[test]
+    fn test_is_empty_body_zero_bytes() {
+        assert!(is_empty_body(b""));
+    }
+
+    // 纯空白响应体（空格、换行、制表符）视为空
+    #[test]
+    fn test_is_empty_body_whitespace_only() {
+        assert!(is_empty_body(b" \r\n\t "));
+    }
+
+    // 正常 JSON 响应不视为空
+    #[test]
+    fn test_is_empty_body_returns_false_for_json() {
+        assert!(!is_empty_body(br#"{"result":"0"}"#));
+    }
 
     // 对象尾随逗号应被删除
     #[test]
