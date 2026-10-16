@@ -78,6 +78,7 @@ mod yuan_wu_deng_gao;
 mod yuan_zheng;
 mod zhi_ye_tiao_zhan;
 mod zhong_qiu_li_he;
+mod zhong_yang_tai_bai_shi_hui;
 mod zhou_zhou_li_bao;
 
 use crate::dw::daledou::DaLeDou;
@@ -192,6 +193,7 @@ tasks! {
     豪侠出世 => hao_xia_chu_shi,
     秘籍封印 => mi_ji_feng_yin,
     中秋礼盒 => zhong_qiu_li_he,
+    重阳太白诗会 => zhong_yang_tai_bai_shi_hui,
 }
 
 #[cfg(test)]
@@ -201,7 +203,7 @@ mod tests {
     // 任务列表数量：锁定登记完整性，防止重构时漏任务
     #[test]
     fn test_task_all_count() {
-        assert_eq!(Task::all().len(), 81);
+        assert_eq!(Task::all().len(), 82);
     }
 
     // 任务列表不允许重复

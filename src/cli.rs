@@ -469,6 +469,11 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
+    /// 仅领取重阳礼包
+    重阳太白诗会 {
+        #[command(flatten)]
+        qq: QqArg,
+    },
     /// 打印帮助信息
     #[command(name = "help")]
     帮助,
@@ -565,6 +570,7 @@ pub async fn parse_args() -> Result<()> {
         Command::豪侠出世 { qq } => app.run_task(Task::豪侠出世, qq.qq).await?,
         Command::秘籍封印 { qq } => app.run_task(Task::秘籍封印, qq.qq).await?,
         Command::中秋礼盒 { qq } => app.run_task(Task::中秋礼盒, qq.qq).await?,
+        Command::重阳太白诗会 { qq } => app.run_task(Task::重阳太白诗会, qq.qq).await?,
         Command::帮助 => {
             Cli::command().print_help()?;
         }
