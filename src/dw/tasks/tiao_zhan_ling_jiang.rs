@@ -1,7 +1,8 @@
 //! 挑战领奖
 //!
-//! 领取职业挑战排行奖励
+//! 周四领取职业挑战排行奖励
 
+use chrono::{Datelike, Local, Weekday};
 use serde::Deserialize;
 
 use crate::dw::daledou::DaLeDou;
@@ -9,6 +10,10 @@ use crate::dw::daledou::DaLeDou;
 const TASK: &str = "挑战领奖";
 
 pub async fn run(d: &DaLeDou) {
+    if Local::now().weekday() != Weekday::Thu {
+        return;
+    }
+
     #[derive(Deserialize)]
     struct Query {
         result: String,

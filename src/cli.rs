@@ -379,7 +379,7 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
-    /// 领取职业挑战排行奖励
+    /// 周四领取职业挑战排行奖励
     挑战领奖 {
         #[command(flatten)]
         qq: QqArg,
