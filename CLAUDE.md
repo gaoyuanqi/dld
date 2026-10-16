@@ -40,6 +40,8 @@ Q宠大乐斗个人版代玩辅助
 - 大乐斗接口返回 GBK 编码 JSON，解码用 `encoding_rs::GBK.decode()`
 - 接口返回码 `result = "-5"` → Cookie 失效；`result = "-10086"` → 系统维护
 - reqwest `.send()` 失败的错误信息自带 URL（`error sending request for url (…)`），错误文案中无需再拼接 URL
+- 接口偶发返回空响应体（如玩法临时下线），client 层统一报「接口返回空响应（URL），可能不在活动时间」
+- JSON 解析失败分两层：语法层（GBK 解码、脏数据清洗）在 client 层报「含非法字符」并附响应片段；结构层（反序列化到任务结构体）在 daledou 层报「响应格式异常」
 
 ## 配置管理
 
@@ -123,4 +125,5 @@ type: 中文描述
 - 配置字段优先用中文标识符与 JSON 键名一致；键名含特殊字符（`*`、`type` 等）时用英文标识符加 `#[serde(rename)]`；其余代码遵循 Rust 命名惯例
 - 不轻易加第三方依赖，优先标准库
 - 测试内联在文件底部 `#[cfg(test)] mod tests`
+- 错误信息文案统一「描述（定位）：细节」结构：URL/cmd_path 用括号包裹，细节用冒号引出（如 `接口返回空响应（{url}），可能不在活动时间`）
 - install.sh 保持 POSIX sh：trap 清理函数须保证退出码为 0（用 if 包裹），否则 dash 会把 trap 退出码当作脚本退出码
