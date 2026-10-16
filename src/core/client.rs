@@ -68,8 +68,9 @@ impl DaLeDouClient {
         let json = loop {
             attempt += 1;
             let json = self.fetch_json(&url).await?;
-            if self.should_retry(&json)? && attempt < 3 {
-                time::sleep(Duration::from_millis(100)).await;
+            self.check_account_status(&json)?;
+            if should_retry(&json) && attempt < 3 {
+                time::sleep(Duration::from_millis(200)).await;
                 continue;
             }
             break json;
@@ -108,17 +109,12 @@ impl DaLeDouClient {
         }
     }
 
-    /// 检测 result 状态码语义，返回 true 表示系统繁忙应重试
+    /// 检测账号状态码并标记状态，异常时直接报错
     ///
     /// - `result = "-5"` → 标记 Cookie 失效（结拜领斗币的特例除外）
     /// - `result = "-10086"` → 标记系统维护
-    fn should_retry(&self, json: &serde_json::Value) -> Result<bool> {
+    fn check_account_status(&self, json: &serde_json::Value) -> Result<()> {
         let result_code = json.get("result").and_then(|v| v.as_str());
-
-        if let Some("-2") = result_code {
-            let msg = json.get("msg").and_then(|v| v.as_str()).unwrap_or("");
-            return Ok(msg.contains("系统繁忙"));
-        }
 
         // {"msg":"登陆校验失败，建议使用微端或其他浏览器登录游戏","result":"-5"}
         if let Some("-5") = result_code {
@@ -142,7 +138,7 @@ impl DaLeDouClient {
             bail!("(-10086) {msg}");
         }
 
-        Ok(false)
+        Ok(())
     }
 
     /// 验证 Cookie 是否有效（向大乐斗服务器发起校验请求）
@@ -186,6 +182,18 @@ impl DaLeDouClient {
 /// 响应体是否为空（0 字节或纯空白）
 fn is_empty_body(bytes: &[u8]) -> bool {
     bytes.iter().all(u8::is_ascii_whitespace)
+}
+
+/// 是否系统繁忙应重试（`result = "-2"` 且 msg 含「系统繁忙」）
+fn should_retry(json: &serde_json::Value) -> bool {
+    let result_code = json.get("result").and_then(|v| v.as_str());
+
+    if let Some("-2") = result_code {
+        let msg = json.get("msg").and_then(|v| v.as_str()).unwrap_or("");
+        return msg.contains("系统繁忙");
+    }
+
+    false
 }
 
 /// 修复接口返回的脏数据 JSON
@@ -306,7 +314,7 @@ fn decode_gbk_to_json(bytes: &[u8]) -> Result<serde_json::Value> {
 mod tests {
     use super::{
         DaLeDouClient, decode_gbk_to_json, default_http_client, is_empty_body, preview_around,
-        repair_dirty_json,
+        repair_dirty_json, should_retry,
     };
 
     // ─── should_retry 测试 ───
@@ -314,43 +322,43 @@ mod tests {
     // -2 且「系统繁忙」返回 true（可重试）
     #[test]
     fn test_should_retry_busy() {
-        let client = DaLeDouClient::new(&default_http_client().unwrap(), "test");
         let json = serde_json::json!({"result": "-2", "msg": "系统繁忙"});
-        assert!(client.should_retry(&json).unwrap());
+        assert!(should_retry(&json));
     }
 
     // -2 但非「系统繁忙」返回 false（不重试）
     #[test]
     fn test_should_retry_minus2_not_busy() {
-        let client = DaLeDouClient::new(&default_http_client().unwrap(), "test");
         let json = serde_json::json!({"result": "-2", "msg": "其他原因"});
-        assert!(!client.should_retry(&json).unwrap());
+        assert!(!should_retry(&json));
     }
+
+    // ─── check_account_status 测试 ───
 
     // -5 标记 Cookie 失效并报错
     #[test]
-    fn test_should_retry_minus5_sets_invalid() {
+    fn test_check_account_status_minus5_sets_invalid() {
         let client = DaLeDouClient::new(&default_http_client().unwrap(), "test");
         let json = serde_json::json!({"result": "-5", "msg": "登陆校验失败"});
-        assert!(client.should_retry(&json).is_err());
+        assert!(client.check_account_status(&json).is_err());
         assert!(client.is_invalid());
     }
 
     // -5 特例（结拜领斗币）不标记失效不报错
     #[test]
-    fn test_should_retry_minus5_special_msg_ok() {
+    fn test_check_account_status_minus5_special_msg_ok() {
         let client = DaLeDouClient::new(&default_http_client().unwrap(), "test");
         let json = serde_json::json!({"result": "-5", "msg": "你已经领取过本届斗币福利！"});
-        assert!(client.should_retry(&json).is_ok());
+        assert!(client.check_account_status(&json).is_ok());
         assert!(!client.is_invalid());
     }
 
     // -10086 标记系统维护并报错
     #[test]
-    fn test_should_retry_maintenance() {
+    fn test_check_account_status_maintenance() {
         let client = DaLeDouClient::new(&default_http_client().unwrap(), "test");
         let json = serde_json::json!({"result": "-10086", "msg": "维护中"});
-        assert!(client.should_retry(&json).is_err());
+        assert!(client.check_account_status(&json).is_err());
         assert!(client.is_maintenance());
     }
 
