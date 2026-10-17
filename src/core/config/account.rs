@@ -381,15 +381,27 @@ pub struct JiaoYiHuiSuo {
     #[serde(rename = "孟婆汤*1")]
     pub 孟婆汤: bool,
     #[serde(rename = "还魂丹*20")]
-    pub 还魂丹: bool,
+    pub 还魂丹_20: bool,
+    #[serde(rename = "还魂丹*100")]
+    pub 还魂丹_100: bool,
     #[serde(rename = "悟性丹*20")]
     pub 悟性丹: bool,
+    #[serde(rename = "百炼钢*5")]
+    pub 百炼钢_5: bool,
     #[serde(rename = "百炼钢*20")]
-    pub 百炼钢: bool,
+    pub 百炼钢_20: bool,
+    #[serde(rename = "真体力*5")]
+    pub 真体力: bool,
     #[serde(rename = "大体力*5")]
-    pub 大体力: bool,
+    pub 大体力_5: bool,
+    #[serde(rename = "大体力*10")]
+    pub 大体力_10: bool,
+    #[serde(rename = "小体力*25")]
+    pub 小体力: bool,
     #[serde(rename = "挑战书*5")]
-    pub 挑战书: bool,
+    pub 挑战书_5: bool,
+    #[serde(rename = "挑战书*10")]
+    pub 挑战书_10: bool,
     #[serde(rename = "经验药水*5")]
     pub 经验药水: bool,
     #[serde(rename = "黄金卷轴*5")]
@@ -413,7 +425,9 @@ pub struct JiaoYiHuiSuo {
     #[serde(rename = "经验木简*10")]
     pub 经验木简: bool,
     #[serde(rename = "大经验药水*1")]
-    pub 大经验药水: bool,
+    pub 大经验药水_1: bool,
+    #[serde(rename = "大经验药水*2")]
+    pub 大经验药水_2: bool,
     #[serde(rename = "投掷武器符文石*5")]
     pub 投掷武器符文石: bool,
     #[serde(rename = "小型武器符文石*5")]
@@ -430,14 +444,20 @@ impl JiaoYiHuiSuo {
     /// 返回所有交易物品的（匹配文本片段, 是否开启）列表
     ///
     /// 匹配时拼接中文逗号防止数量误匹配（如 *20 不会误匹配 *2）
-    fn items(&self) -> [(&str, bool); 23] {
+    fn items(&self) -> [(&str, bool); 30] {
         [
             ("孟婆汤*1，", self.孟婆汤),
-            ("还魂丹*20，", self.还魂丹),
+            ("还魂丹*20，", self.还魂丹_20),
+            ("还魂丹*100，", self.还魂丹_100),
             ("悟性丹*20，", self.悟性丹),
-            ("百炼钢*20，", self.百炼钢),
-            ("大体力*5，", self.大体力),
-            ("挑战书*5，", self.挑战书),
+            ("百炼钢*5，", self.百炼钢_5),
+            ("百炼钢*20，", self.百炼钢_20),
+            ("真体力*5，", self.真体力),
+            ("大体力*5，", self.大体力_5),
+            ("大体力*10，", self.大体力_10),
+            ("小体力*25，", self.小体力),
+            ("挑战书*5，", self.挑战书_5),
+            ("挑战书*10，", self.挑战书_10),
             ("经验药水*5，", self.经验药水),
             ("黄金卷轴*5，", self.黄金卷轴),
             ("神来拳套*5，", self.神来拳套),
@@ -449,7 +469,8 @@ impl JiaoYiHuiSuo {
             ("奔流气息*5，", self.奔流气息),
             ("上古玉髓*5，", self.上古玉髓),
             ("经验木简*10，", self.经验木简),
-            ("大经验药水*1，", self.大经验药水),
+            ("大经验药水*1，", self.大经验药水_1),
+            ("大经验药水*2，", self.大经验药水_2),
             ("投掷武器符文石*5，", self.投掷武器符文石),
             ("小型武器符文石*5，", self.小型武器符文石),
             ("中型武器符文石*5，", self.中型武器符文石),
@@ -1633,11 +1654,17 @@ mod tests {
     fn all_items(v: bool) -> JiaoYiHuiSuo {
         JiaoYiHuiSuo {
             孟婆汤: v,
-            还魂丹: v,
+            还魂丹_20: v,
+            还魂丹_100: v,
             悟性丹: v,
-            百炼钢: v,
-            大体力: v,
-            挑战书: v,
+            百炼钢_5: v,
+            百炼钢_20: v,
+            真体力: v,
+            大体力_5: v,
+            大体力_10: v,
+            小体力: v,
+            挑战书_5: v,
+            挑战书_10: v,
             经验药水: v,
             黄金卷轴: v,
             神来拳套: v,
@@ -1649,7 +1676,8 @@ mod tests {
             奔流气息: v,
             上古玉髓: v,
             经验木简: v,
-            大经验药水: v,
+            大经验药水_1: v,
+            大经验药水_2: v,
             投掷武器符文石: v,
             小型武器符文石: v,
             中型武器符文石: v,
@@ -1661,7 +1689,7 @@ mod tests {
     #[test]
     fn test_is_match_items_count() {
         let huisuo = JiaoYiHuiSuo::default();
-        assert_eq!(huisuo.items().len(), 23);
+        assert_eq!(huisuo.items().len(), 30);
     }
 
     #[test]
