@@ -25,6 +25,7 @@ pub struct AccountConfig {
     pub 历练: LiLian,
     pub 门派: MenPai,
     pub 会武: HuiWu,
+    pub 背包: BeiBao,
     pub 竞技场: JingJiChang,
     pub 梦想之旅: MengXiangZhiLv,
     pub 问鼎天下: WenDingTianXia,
@@ -50,6 +51,7 @@ impl UpdatableConfig for AccountConfig {
         self.掠夺.validate()?;
         self.历练.validate()?;
         self.会武.validate()?;
+        self.背包.validate()?;
         self.梦想之旅.validate()?;
         self.帮派商会.兑换商店.validate()?;
         self.江湖长梦.兑换上限.validate()?;
@@ -288,6 +290,45 @@ pub struct HuiWu {
 impl HuiWu {
     fn validate(&self) -> Result<()> {
         validate_range!("会武.兑换真黄金卷轴数量", self.兑换真黄金卷轴数量, 0, 100);
+        Ok(())
+    }
+}
+
+/// 背包
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
+pub struct BeiBao {
+    /// 使用物品名称
+    pub 使用: Vec<String>,
+}
+
+impl Default for BeiBao {
+    fn default() -> Self {
+        Self {
+            使用: vec!["装酒肉的食盒".to_string()],
+        }
+    }
+}
+
+impl BeiBao {
+    fn validate(&self) -> Result<()> {
+        if self.使用.len() > 50 {
+            bail!("背包.使用 物品上限 50 个，当前 {} 个", self.使用.len());
+        }
+        let unique: HashSet<_> = self.使用.iter().collect();
+        if unique.len() != self.使用.len() {
+            bail!("背包.使用 物品不允许重复");
+        }
+        for (i, item) in self.使用.iter().enumerate() {
+            let chars = item.chars().count();
+            if chars == 0 || chars > 15 {
+                bail!(
+                    "背包.使用[{}] 期望 1~15 字符，实际为 {} 字符：\"{item}\"",
+                    i,
+                    chars
+                );
+            }
+        }
         Ok(())
     }
 }
@@ -1119,6 +1160,7 @@ mod tests {
         let config = AccountConfig::default();
         assert_eq!(config.矿洞.开启副本.层数, KuangDongFloor::F1);
         assert_eq!(config.矿洞.开启副本.模式, KuangDongMode::Easy);
+        assert_eq!(config.背包.使用, ["装酒肉的食盒"]);
         assert!(!config.竞技场.兑换河图洛书);
         assert_eq!(config.梦想之旅.最多消耗梦幻机票数量, 3);
         assert!(!config.侠士客栈.黑市商人.ex_1006);
@@ -1208,6 +1250,52 @@ mod tests {
     fn test_account_config_load_hui_wu_range_ok() {
         let config = load_account(r#"{"会武": {"兑换真黄金卷轴数量": 100}}"#).unwrap();
         assert_eq!(config.会武.兑换真黄金卷轴数量, 100);
+    }
+
+    // 背包使用物品数量超上限报错
+    #[test]
+    fn test_account_config_load_bei_bao_out_of_range() {
+        let items: Vec<String> = (0..51).map(|i| format!("物品{i}")).collect();
+        let json = format!(
+            r#"{{"背包": {{"使用": {}}}}}"#,
+            serde_json::to_string(&items).unwrap()
+        );
+        assert!(load_account(&json).is_err());
+    }
+
+    // 背包使用物品数量边界值合法
+    #[test]
+    fn test_account_config_load_bei_bao_range_ok() {
+        let items: Vec<String> = (0..50).map(|i| format!("物品{i}")).collect();
+        let json = format!(
+            r#"{{"背包": {{"使用": {}}}}}"#,
+            serde_json::to_string(&items).unwrap()
+        );
+        let config = load_account(&json).unwrap();
+        assert_eq!(config.背包.使用.len(), 50);
+    }
+
+    // 背包使用物品重复报错
+    #[test]
+    fn test_account_config_load_bei_bao_duplicate() {
+        assert!(load_account(r#"{"背包": {"使用": ["金创药", "金创药"]}}"#).is_err());
+    }
+
+    // 背包使用物品元素长度非法报错（空字符串 / 16 字符）
+    #[test]
+    fn test_account_config_load_bei_bao_item_len_out_of_range() {
+        assert!(load_account(r#"{"背包": {"使用": [""]}}"#).is_err());
+        assert!(
+            load_account(r#"{"背包": {"使用": ["一二三四五六七八九十一二三四五六"]}}"#).is_err()
+        );
+    }
+
+    // 背包使用物品元素长度边界值合法（15 字符）
+    #[test]
+    fn test_account_config_load_bei_bao_item_len_range_ok() {
+        let json = r#"{"背包": {"使用": ["一二三四五六七八九十一二三四五"]}}"#;
+        let config = load_account(json).unwrap();
+        assert_eq!(config.背包.使用[0], "一二三四五六七八九十一二三四五");
     }
 
     // 时空遗迹 BOSS 上限读取与接口参数转换
