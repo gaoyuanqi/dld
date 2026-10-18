@@ -3,6 +3,7 @@ mod bang_pai_shang_hui;
 mod bei_bao;
 mod biao_xing_tian_xia;
 mod cai_dan_shuang;
+mod chong_yang_tai_bai_shi_hui;
 mod da_xia_hui_gui;
 mod deng_lu_shang_dian;
 mod deng_lu_you_li;
@@ -78,7 +79,6 @@ mod yuan_wu_deng_gao;
 mod yuan_zheng;
 mod zhi_ye_tiao_zhan;
 mod zhong_qiu_li_he;
-mod zhong_yang_tai_bai_shi_hui;
 mod zhou_zhou_li_bao;
 
 use crate::dw::daledou::DaLeDou;
@@ -193,7 +193,7 @@ tasks! {
     豪侠出世 => hao_xia_chu_shi,
     秘籍封印 => mi_ji_feng_yin,
     中秋礼盒 => zhong_qiu_li_he,
-    重阳太白诗会 => zhong_yang_tai_bai_shi_hui,
+    重阳太白诗会 => chong_yang_tai_bai_shi_hui,
 }
 
 #[cfg(test)]
