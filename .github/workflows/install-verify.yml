@@ -4,8 +4,8 @@ on:
   release:
     types: [published]
   schedule:
-    # 每天 UTC 18:00（北京时间次日凌晨 2 点）验证 latest 安装链
-    - cron: '0 18 * * *'
+    # 每周一 UTC 18:00（北京时间周二凌晨 2 点）验证 latest 安装链
+    - cron: '0 18 * * 1'
   workflow_dispatch:
     inputs:
       version:
