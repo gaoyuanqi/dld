@@ -305,7 +305,16 @@ pub struct BeiBao {
 impl Default for BeiBao {
     fn default() -> Self {
         Self {
-            使用: vec!["装酒肉的食盒".to_string()],
+            使用: vec![
+                "周年福袋".to_string(),
+                "福运红包".to_string(),
+                "财运红包".to_string(),
+                "阅历卷宗".to_string(),
+                "贡献小笼包".to_string(),
+                "贡献叉烧包".to_string(),
+                "阅历羊皮卷".to_string(),
+                "装酒肉的食盒".to_string(),
+            ],
         }
     }
 }
@@ -1164,7 +1173,19 @@ mod tests {
         let config = AccountConfig::default();
         assert_eq!(config.矿洞.开启副本.层数, KuangDongFloor::F1);
         assert_eq!(config.矿洞.开启副本.模式, KuangDongMode::Easy);
-        assert_eq!(config.背包.使用, ["装酒肉的食盒"]);
+        assert_eq!(
+            config.背包.使用,
+            [
+                "周年福袋",
+                "福运红包",
+                "财运红包",
+                "阅历卷宗",
+                "贡献小笼包",
+                "贡献叉烧包",
+                "阅历羊皮卷",
+                "装酒肉的食盒",
+            ]
+        );
         assert!(!config.竞技场.兑换河图洛书);
         assert_eq!(config.梦想之旅.最多消耗梦幻机票数量, 3);
         assert!(!config.侠士客栈.黑市商人.ex_1006);
