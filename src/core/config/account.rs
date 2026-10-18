@@ -816,6 +816,10 @@ impl WoDeBangPai {
         if self.供奉.len() > 40 {
             bail!("我的帮派.供奉 期望 0~40 个，当前 {} 个", self.供奉.len());
         }
+        let unique: HashSet<_> = self.供奉.iter().collect();
+        if unique.len() != self.供奉.len() {
+            bail!("我的帮派.供奉 物品不允许重复");
+        }
         for (i, item) in self.供奉.iter().enumerate() {
             let chars = item.chars().count();
             if chars == 0 || chars > 15 {
@@ -1645,6 +1649,16 @@ mod tests {
         let config = WoDeBangPai {
             报名: false,
             供奉: vec!["".to_string()],
+        };
+        assert!(config.validate().is_err());
+    }
+
+    // 供奉重复拒绝
+    #[test]
+    fn test_wo_de_bang_pai_duplicate_offering() {
+        let config = WoDeBangPai {
+            报名: false,
+            供奉: vec!["还魂丹".to_string(), "还魂丹".to_string()],
         };
         assert!(config.validate().is_err());
     }
