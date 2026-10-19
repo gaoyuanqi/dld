@@ -1,6 +1,6 @@
 //! 今日活跃度
 //!
-//! 领取个人和帮派总活跃礼包
+//! 回流好友召回、领取个人和帮派总活跃礼包
 
 use serde::Deserialize;
 
@@ -16,28 +16,29 @@ struct Response {
 }
 
 pub async fn run(d: &DaLeDou) {
-    #[derive(Deserialize)]
-    struct Query {
-        result: String,
-        msg: String,
-        liveness: String, // 今日活跃度/帮派礼包所需今日活跃度
-        #[serde(rename = "facLiveness")]
-        fac_liveness: String, // 昨日帮派总活跃度/帮派礼包所需总活跃度
-        giftmarkseq: String, // 32位礼包领取标记
-    }
+    let Some(data) = query(d).await else {
+        return;
+    };
 
-    let data: Query = match d.get("cmd=liveness").await {
-        Ok(v) => v,
+    // daycall 为已召回次数，非法值时打日志并跳过召回
+    let remaining = match data.daycall.parse::<u8>() {
+        Ok(already_called) => remaining_calls(already_called),
         Err(e) => {
-            d.log(TASK, &format!("{e}"));
-            return;
+            d.log(TASK, &format!("解析 daycall 字段失败：{e}"));
+            0
         }
     };
 
-    if data.result != "0" {
-        d.log(TASK, &data.msg);
-        return;
-    }
+    // 触发召回会增加活跃度，需重新查询；未触发则复用本次查询结果
+    let data = if remaining > 0 {
+        回流好友召回(d, remaining).await;
+        let Some(data) = query(d).await else {
+            return;
+        };
+        data
+    } else {
+        data
+    };
 
     if data.giftmarkseq.len() != 32 {
         d.log(
@@ -64,6 +65,90 @@ pub async fn run(d: &DaLeDou) {
     }
 
     领取帮派总活跃礼包(d).await;
+}
+
+#[derive(Deserialize)]
+struct Query {
+    result: String,
+    msg: String,
+    daycall: String,  // 回流好友召回次数
+    liveness: String, // 今日活跃度/帮派礼包所需今日活跃度
+    #[serde(rename = "facLiveness")]
+    fac_liveness: String, // 昨日帮派总活跃度/帮派礼包所需总活跃度
+    giftmarkseq: String, // 32位礼包领取标记
+}
+
+async fn query(d: &DaLeDou) -> Option<Query> {
+    // 今日活跃度
+    let data: Query = match d.get("cmd=liveness").await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return None;
+        }
+    };
+
+    if data.result != "0" {
+        d.log(TASK, &data.msg);
+        return None;
+    }
+
+    Some(data)
+}
+
+/// 计算剩余可召回次数：每日最多 3 次，已召回 n 次则剩余 3-n
+fn remaining_calls(already_called: u8) -> u8 {
+    3u8.saturating_sub(already_called)
+}
+
+async fn 回流好友召回(d: &DaLeDou, remaining: u8) {
+    #[derive(Deserialize)]
+    struct Call {
+        result: String,
+        msg: String,
+        canbecall: Vec<CanbeCall>, // 回流好友列表
+    }
+
+    #[derive(Deserialize)]
+    struct CanbeCall {
+        uin: String,
+    }
+
+    // 回流好友召回
+    let data: Call = match d.get("cmd=callback&subtype=3").await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    if data.result != "0" {
+        d.log(TASK, &data.msg);
+        return;
+    }
+
+    let Some(canbecall) = data.canbecall.first() else {
+        return;
+    };
+
+    for _ in 0..remaining {
+        回来玩吧(d, &canbecall.uin).await;
+    }
+}
+
+async fn 回来玩吧(d: &DaLeDou, uin: &str) {
+    // 回来玩吧
+    let cmd = format!("cmd=callback&subtype=4&opuin={uin}");
+    let data: Response = match d.get(&cmd).await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    d.log(TASK, &data.msg);
 }
 
 /// 从 liveness 字段提取今日活跃度
@@ -182,5 +267,22 @@ mod tests {
         // 仅 id=2 未领取，活跃度达标
         let markseq = "11011111111111111111111111111111";
         assert_eq!(find_claimable_gifts(115, markseq), vec![2]);
+    }
+
+    // ─── remaining_calls ───
+
+    #[test]
+    fn test_remaining_calls() {
+        assert_eq!(remaining_calls(0), 3);
+        assert_eq!(remaining_calls(1), 2);
+        assert_eq!(remaining_calls(2), 1);
+        assert_eq!(remaining_calls(3), 0);
+    }
+
+    #[test]
+    fn test_remaining_calls_abnormal() {
+        // 接口异常返回超过上限时防御下溢
+        assert_eq!(remaining_calls(4), 0);
+        assert_eq!(remaining_calls(u8::MAX), 0);
     }
 }

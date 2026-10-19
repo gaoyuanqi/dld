@@ -284,7 +284,7 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
-    /// 领取礼包
+    /// 回流、领取礼包
     今日活跃度 {
         #[command(flatten)]
         qq: QqArg,
