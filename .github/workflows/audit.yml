@@ -1,0 +1,33 @@
+name: 依赖安全审计
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  schedule:
+    # 每周一检查一次，即使没有代码变更也能发现新公布的漏洞
+    - cron: '37 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    # 非阻断：漏洞公告不应卡住 bugfix 合入，红标即告警
+    continue-on-error: true
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: 依赖安全审计（RustSec 漏洞库）
+        uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
