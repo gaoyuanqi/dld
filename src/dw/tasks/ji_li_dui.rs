@@ -244,7 +244,7 @@ async fn 兑换一次(d: &DaLeDou, n: u32, id: &str) -> bool {
         };
 
         d.log(TASK, &data.msg);
-        if !data.msg.starts_with("精魂兑换成功") {
+        if !data.msg.starts_with("精魄兑换成功") {
             return false;
         }
 
