@@ -469,7 +469,7 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
-    /// 仅领取重阳礼包
+    /// 口令提交、领取
     重阳太白诗会 {
         #[command(flatten)]
         qq: QqArg,
