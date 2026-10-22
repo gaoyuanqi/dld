@@ -17,6 +17,11 @@ on:
       - 'install.sh'
       - 'install.ps1'
 
+# 同一 PR / 分支内连续 push 时取消旧运行，避免 4 OS 矩阵并行堆积
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
