@@ -96,6 +96,11 @@ impl Paths {
         &self.config_dir
     }
 
+    /// 返回指定 QQ 的账号配置文件路径
+    pub fn account_config_file(&self, qq: &str) -> PathBuf {
+        self.config_dir.join(format!("{qq}.json"))
+    }
+
     /// 确保子目录存在
     fn ensure_dirs(&self) -> Result<()> {
         fs::create_dir_all(&self.logs_dir)?;

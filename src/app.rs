@@ -63,7 +63,7 @@ impl App {
 
         println!("\n{} 登记成功！", account.qq);
 
-        let config_path = self.paths.config_dir().join(format!("{}.json", account.qq));
+        let config_path = self.paths.account_config_file(&account.qq);
         AccountConfig::create_default(&config_path)?;
 
         Ok(())
@@ -76,7 +76,7 @@ impl App {
         } else {
             println!("\n未找到 QQ {qq} 的账号，无需移除");
         }
-        let path = self.paths.config_dir().join(format!("{qq}.json"));
+        let path = self.paths.account_config_file(qq);
         if path.exists() {
             fs::remove_file(&path)
                 .with_context(|| format!("删除账号配置失败：{}", path.display()))?;
@@ -101,7 +101,7 @@ impl App {
     pub fn update_config(&self) -> Result<()> {
         update_and_report::<GlobalConfig>(self.paths.global_config_file())?;
         for qq in &self.accounts.list_qqs()? {
-            let path = self.paths.config_dir().join(format!("{qq}.json"));
+            let path = self.paths.account_config_file(qq);
             update_and_report::<AccountConfig>(&path)?;
         }
         Ok(())
@@ -210,7 +210,7 @@ async fn run_account(
 ) -> Result<()> {
     let _permit = semaphore.acquire_owned().await;
 
-    let config_path = paths.config_dir().join(format!("{}.json", acc.qq));
+    let config_path = paths.account_config_file(&acc.qq);
     let config = AccountConfig::load(&config_path)?;
 
     let logger = Logger::new(paths.logs_dir(), &acc.qq, log_tx)?;
