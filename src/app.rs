@@ -4,17 +4,19 @@
 //! 按并发数调度多账号任务执行，最后统一输出成功/失败统计
 
 use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
 use reqwest::Client;
+use serde_json::Value;
 use tokio::sync::Semaphore;
 use tokio::sync::mpsc::channel;
 
 use crate::core::accounts::{Account, AccountStore};
 use crate::core::client::{self, DaLeDouClient};
-use crate::core::config::{AccountConfig, GlobalConfig, UpdatableConfig};
+use crate::core::config::{AccountConfig, GlobalConfig, UpdatableConfig, get_leaf_value};
 use crate::core::log::{
     LOG_CHANNEL_CAPACITY, LogMessage, LogWriter, Logger, cleanup_old_logs, remove_account_logs,
 };
@@ -58,6 +60,8 @@ impl App {
 
         self.accounts.save(&account)?;
 
+        println!("\n{} 登记成功！", account.qq);
+
         let config_path = self.paths.config_dir().join(format!("{}.json", account.qq));
         AccountConfig::create_default(&config_path)?;
 
@@ -66,7 +70,11 @@ impl App {
 
     /// 注销账号：删除 Cookie → 配置 → 日志
     pub fn unregister(&self, qq: &str) -> Result<()> {
-        self.accounts.remove(qq)?;
+        if self.accounts.remove(qq)? {
+            println!("\n{qq} 注销成功！");
+        } else {
+            println!("\n未找到 QQ {qq} 的账号，无需移除");
+        }
         let path = self.paths.config_dir().join(format!("{qq}.json"));
         if path.exists() {
             fs::remove_file(&path)
@@ -80,15 +88,20 @@ impl App {
 
     /// 打印标准目录结构
     pub fn print_std_dirs(&self) {
-        self.paths.print_std_dirs();
+        println!("\n标准目录：");
+        println!("  {}/", self.paths.data_dir().display());
+        println!("    ├── config/               — 账号配置");
+        println!("    ├── cookies.json          — 账号 Cookie");
+        println!("    ├── global_config.json    — 全局配置");
+        println!("    └── logs/                 — 运行日志");
     }
 
     /// 更新所有配置文件（补充新增字段、删除废弃字段）
     pub fn update_config(&self) -> Result<()> {
-        GlobalConfig::update_and_report(self.paths.global_config_file())?;
+        update_and_report::<GlobalConfig>(self.paths.global_config_file())?;
         for qq in &self.accounts.list_qqs()? {
             let path = self.paths.config_dir().join(format!("{qq}.json"));
-            AccountConfig::update_and_report(&path)?;
+            update_and_report::<AccountConfig>(&path)?;
         }
         Ok(())
     }
@@ -122,7 +135,9 @@ impl App {
         let (log_tx, log_rx) = channel::<LogMessage>(LOG_CHANNEL_CAPACITY);
         let log_paths = self.paths.clone();
         let log_writer = tokio::spawn(async move {
-            LogWriter::new(log_rx, log_paths.logs_dir()).run().await;
+            LogWriter::new(log_rx, log_paths.logs_dir(), true)
+                .run()
+                .await;
         });
 
         let total = accounts.len();
@@ -209,5 +224,63 @@ impl App {
             anyhow::bail!("大乐斗维护中");
         }
         Ok(())
+    }
+}
+
+/// 更新单个配置文件并打印 diff 报告
+fn update_and_report<T: UpdatableConfig>(path: &Path) -> Result<()> {
+    let default_value = serde_json::to_value(T::default())?;
+    let diff = T::update(path)?;
+    let has_changes = !diff.added.is_empty() || !diff.removed.is_empty();
+
+    if !diff.added.is_empty() {
+        println!("\n新增：");
+        for p in &diff.added {
+            if let Some(v) = get_leaf_value(&default_value, p) {
+                println!("  {p}: {}，默认 {}", value_kind(v), format_default(v));
+            }
+        }
+    }
+    if !diff.removed.is_empty() {
+        println!("\n移除：");
+        for r in &diff.removed {
+            println!("  {r}");
+        }
+    }
+    if has_changes {
+        println!("\n{}已更新：{}", T::section_title(), path.display());
+    }
+
+    Ok(())
+}
+
+/// JSON 值类型的中文名
+fn value_kind(v: &Value) -> &'static str {
+    match v {
+        Value::Bool(_) => "bool",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+        Value::Null => "null",
+    }
+}
+
+/// 格式化默认值（字符串加引号）
+fn format_default(v: &Value) -> String {
+    match v {
+        Value::String(s) => format!("\"{s}\""),
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => n.to_string(),
+        Value::Null => "null".to_string(),
+        Value::Array(arr) => {
+            let len = arr.len();
+            if len == 0 {
+                "[]".to_string()
+            } else {
+                format!("[{len} 个元素]")
+            }
+        }
+        Value::Object(_) => "{}".to_string(),
     }
 }

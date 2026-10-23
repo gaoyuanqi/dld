@@ -126,16 +126,6 @@ impl Paths {
         }
         Ok(())
     }
-
-    /// 打印标准目录结构
-    pub fn print_std_dirs(&self) {
-        println!("\n标准目录：");
-        println!("  {}/", self.data_dir.display());
-        println!("    ├── config/               — 账号配置");
-        println!("    ├── cookies.json          — 账号 Cookie");
-        println!("    ├── global_config.json    — 全局配置");
-        println!("    └── logs/                 — 运行日志");
-    }
 }
 
 #[cfg(test)]

@@ -80,29 +80,33 @@ impl Logger {
 pub(crate) struct LogWriter {
     rx: Receiver<LogMessage>,
     logs_dir: PathBuf,
+    console: bool,
 }
 
 impl LogWriter {
-    /// 创建日志写入器
-    pub(crate) fn new(rx: Receiver<LogMessage>, logs_dir: &Path) -> Self {
+    /// 创建日志写入器（`console` 控制是否同步输出到控制台）
+    pub(crate) fn new(rx: Receiver<LogMessage>, logs_dir: &Path, console: bool) -> Self {
         Self {
             rx,
             logs_dir: logs_dir.to_path_buf(),
+            console,
         }
     }
 
     /// 消费日志消息直到通道关闭，随后正常退出
     pub(crate) async fn run(mut self) {
         while let Some(msg) = self.rx.recv().await {
-            println!(
-                "{}",
-                format_console_line(
-                    &msg.now.format("%Y-%m-%d %H:%M:%S").to_string(),
-                    &msg.qq,
-                    &msg.task_name,
-                    &msg.result,
-                )
-            );
+            if self.console {
+                println!(
+                    "{}",
+                    format_console_line(
+                        &msg.now.format("%Y-%m-%d %H:%M:%S").to_string(),
+                        &msg.qq,
+                        &msg.task_name,
+                        &msg.result,
+                    )
+                );
+            }
             self.write(&msg);
         }
     }
@@ -234,7 +238,7 @@ mod tests {
     async fn test_writer_persists_logs_in_order() {
         let dir = tempfile::tempdir().unwrap();
         let (tx, rx) = tokio::sync::mpsc::channel(LOG_CHANNEL_CAPACITY);
-        let writer = LogWriter::new(rx, dir.path());
+        let writer = LogWriter::new(rx, dir.path(), false);
 
         let logger = Logger::new(dir.path(), "123456", tx.clone()).unwrap();
         let now = Local::now().naive_local();
@@ -258,7 +262,7 @@ mod tests {
     async fn test_channel_full_drops_new_logs() {
         let dir = tempfile::tempdir().unwrap();
         let (tx, rx) = tokio::sync::mpsc::channel(2);
-        let writer = LogWriter::new(rx, dir.path());
+        let writer = LogWriter::new(rx, dir.path(), false);
 
         let logger = Logger::new(dir.path(), "123456", tx.clone()).unwrap();
         let now = Local::now().naive_local();
@@ -305,7 +309,7 @@ mod tests {
     async fn test_writer_routes_logs_by_qq() {
         let dir = tempfile::tempdir().unwrap();
         let (tx, rx) = tokio::sync::mpsc::channel(LOG_CHANNEL_CAPACITY);
-        let writer = LogWriter::new(rx, dir.path());
+        let writer = LogWriter::new(rx, dir.path(), false);
 
         let logger_a = Logger::new(dir.path(), "111", tx.clone()).unwrap();
         let logger_b = Logger::new(dir.path(), "222", tx.clone()).unwrap();

@@ -128,68 +128,10 @@ pub(crate) trait UpdatableConfig: Default + DeserializeOwned + Serialize {
 
         Ok(diff)
     }
-
-    /// 更新并打印 diff 报告
-    fn update_and_report(path: &Path) -> Result<()> {
-        let default_value = serde_json::to_value(Self::default())?;
-        let diff = Self::update(path)?;
-        let has_changes = !diff.added.is_empty() || !diff.removed.is_empty();
-
-        if !diff.added.is_empty() {
-            println!("\n新增：");
-            for p in &diff.added {
-                if let Some(v) = get_leaf_value(&default_value, p) {
-                    println!("  {p}: {}，默认 {}", value_kind(v), format_default(v));
-                }
-            }
-        }
-        if !diff.removed.is_empty() {
-            println!("\n移除：");
-            for r in &diff.removed {
-                println!("  {r}");
-            }
-        }
-        if has_changes {
-            println!("\n{}已更新：{}", Self::section_title(), path.display());
-        }
-
-        Ok(())
-    }
-}
-
-/// JSON 值类型的中文名
-fn value_kind(v: &Value) -> &'static str {
-    match v {
-        Value::Bool(_) => "bool",
-        Value::Number(_) => "number",
-        Value::String(_) => "string",
-        Value::Array(_) => "array",
-        Value::Object(_) => "object",
-        Value::Null => "null",
-    }
-}
-
-/// 格式化默认值（字符串加引号）
-fn format_default(v: &Value) -> String {
-    match v {
-        Value::String(s) => format!("\"{s}\""),
-        Value::Bool(b) => b.to_string(),
-        Value::Number(n) => n.to_string(),
-        Value::Null => "null".to_string(),
-        Value::Array(arr) => {
-            let len = arr.len();
-            if len == 0 {
-                "[]".to_string()
-            } else {
-                format!("[{len} 个元素]")
-            }
-        }
-        Value::Object(_) => "{}".to_string(),
-    }
 }
 
 /// 从 JSON Value 中按点号分隔路径获取叶子值
-fn get_leaf_value<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
+pub(crate) fn get_leaf_value<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
     let mut current = value;
     for part in path.split('.') {
         current = current.get(part)?;

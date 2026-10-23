@@ -109,24 +109,21 @@ impl AccountStore {
         let json = serde_json::to_string_pretty(&accounts).context("序列化账号数据失败")?;
         self.write_cookies(&json)?;
 
-        println!("\n{} 登记成功！", account.qq);
-
         Ok(())
     }
 
-    /// 删除指定 QQ 的账号记录
-    pub fn remove(&self, qq: &str) -> Result<()> {
+    /// 删除指定 QQ 的账号记录，返回是否确实删除（`false` 表示未找到）
+    pub fn remove(&self, qq: &str) -> Result<bool> {
         let mut accounts = self.load_cookies()?;
 
-        if accounts.remove(qq).is_some() {
-            let json = serde_json::to_string_pretty(&accounts).context("序列化账号数据失败")?;
-            self.write_cookies(&json)?;
-            println!("\n{} 注销成功！", qq);
-        } else {
-            println!("\n未找到 QQ {} 的账号，无需移除", qq);
+        if accounts.remove(qq).is_none() {
+            return Ok(false);
         }
 
-        Ok(())
+        let json = serde_json::to_string_pretty(&accounts).context("序列化账号数据失败")?;
+        self.write_cookies(&json)?;
+
+        Ok(true)
     }
 
     /// 写入 Cookie 文件并收紧权限（Unix 下 0600，防止其他用户读取）
@@ -358,7 +355,8 @@ mod tests {
     fn test_remove_success() {
         let (store, _dir) = temp_store();
         store.save(&sample_account("10001")).unwrap();
-        store.remove("10001").unwrap();
+        // 确实删除返回 true
+        assert!(store.remove("10001").unwrap());
 
         assert!(store.load_all().is_err());
     }
@@ -366,8 +364,8 @@ mod tests {
     #[test]
     fn test_remove_nonexistent() {
         let (store, _dir) = temp_store();
-        // 不保存任何账号，直接删除不存在的 — 不应报错
-        assert!(store.remove("99999").is_ok());
+        // 不保存任何账号，直接删除不存在的 — 不应报错，返回 false
+        assert!(!store.remove("99999").unwrap());
     }
 
     // ── 文件权限测试（仅 Unix，Cookie 文件应仅所有者可读写） ──
