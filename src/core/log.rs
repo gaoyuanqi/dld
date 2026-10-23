@@ -37,7 +37,8 @@ pub struct Logger {
 impl Logger {
     /// 创建日志记录器
     ///
-    /// 创建前校验日志目录可写，消息由 [`LogWriter`] 统一输出和落盘
+    /// 创建前校验日志目录可写，消息由 [`LogWriter`] 统一落盘，
+    /// 是否同步输出到控制台由 [`LogWriter::new`] 的开关控制
     pub(crate) fn new(logs_dir: &Path, qq: &str, tx: Sender<LogMessage>) -> Result<Self> {
         let log_dir = logs_dir.join(qq);
 

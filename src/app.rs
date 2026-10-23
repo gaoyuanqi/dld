@@ -271,7 +271,7 @@ fn update_and_report<T: UpdatableConfig>(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// JSON 值类型的中文名
+/// JSON 值类型名
 fn value_kind(v: &Value) -> &'static str {
     match v {
         Value::Bool(_) => "bool",
