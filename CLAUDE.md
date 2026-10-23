@@ -7,6 +7,7 @@ Q宠大乐斗个人版代玩辅助
 - 所有输出使用中文
 - 不明确的问题要提问，不做猜测
 - 改代码前先对齐：用户描述问题或提需求时，先复述理解并给出方案（附理由），等用户明确同意再动手；收到「加上」「提交」等明确指令时直接执行
+- 外部审查报告/建议逐条实测验证后再采信，不直接照单全收
 
 # Rust 规范
 
@@ -54,12 +55,14 @@ Q宠大乐斗个人版代玩辅助
 
 ### 新增配置
 
+先判断是否该进配置：用户可调的旋钮才进配置，题库/查表类数据（诗句、对联等）放代码常量
+
 1. 定义配置结构体，派生 `Debug, Default, Deserialize, Serialize`，加 `#[serde(default)]`
 2. 子结构体挂到 `GlobalConfig` 或 `AccountConfig` 下即可；新增顶层配置类型才需要 `impl UpdatableConfig` 并实现 `section_title()`（目前仅全局/账号两种，几乎不会新增）
 3. 需要字段取值范围校验时 override `validate()`，范围校验用 `validate_range!` 宏，其余用 `bail!()`
 4. 子结构体的 `validate()` 不会自动被调，需在父结构体的 `validate()` 里手动 `self.xxx.validate()?;`
 5. `load`/`update`/`create_default` 由 trait 默认实现提供
-6. `dld 同步配置` 同时更新全局配置和所有已登记账号的配置
+6. `dld 同步配置` 同时更新全局配置和所有已登记账号的配置；注意字典（map）字段不做键级合并，避免用字典存需增长的集合
 
 ## 任务执行
 
@@ -76,6 +79,14 @@ Q宠大乐斗个人版代玩辅助
 - 任务模块文件顶部写 `//!` 模块文档（玩法名称及一句话说明）
 - 枚举变体、`Task::all()`、`run_task` 分发三处自动生成，无需手写
 - 同步更新 `test_task_all_count` 中的任务数量断言
+- 查表类任务（提示→答案）用内置常量，双向可查 + 同长度成组测试锁定数据（见 README 参与贡献）
+
+## CI workflow
+
+- ci.yml 配了 concurrency：同一 PR / 分支连续 push 取消旧运行；release.yml 禁止加（发布流程被取消是事故）
+- clippy 不加 `--all-targets`：测试代码按规范允许 unwrap（Rust 规范「测试除外」依赖默认目标检查实现），加了会立即报大量 unwrap_used 错误
+- audit.yml 依赖审计非阻断（continue-on-error）：advisory 是外部时间驱动事件，与代码变更无关，不卡 bugfix 合入，红标即告警
+- Dependabot：开 alerts / security updates / grouped security updates / malware alerts；不开 version updates（定期 PR 烧 4 OS 矩阵）和 automatic dependency submission（Rust 不在支持生态，Cargo.lock 已静态解析）
 
 ## Gitee 镜像
 
@@ -125,5 +136,5 @@ type: 中文描述
 - 配置字段优先用中文标识符与 JSON 键名一致；键名含特殊字符（`*`、`type` 等）时用英文标识符加 `#[serde(rename)]`；其余代码遵循 Rust 命名惯例
 - 不轻易加第三方依赖，优先标准库
 - 测试内联在文件底部 `#[cfg(test)] mod tests`
-- 错误信息文案统一「描述（定位）：细节」结构：URL/cmd_path 用括号包裹，细节用冒号引出（如 `接口返回空响应（{url}），可能不在活动时间`）
+- 错误信息两层结构：底层错误「描述（定位）：细节」（如 `接口返回空响应（{url}），可能不在活动时间`）；任务日志「值 => 描述」（如 `{show_poetry} => 诗句库未收录`），值在前便于快速定位
 - install.sh 保持 POSIX sh：trap 清理函数须保证退出码为 0（用 if 包裹），否则 dash 会把 trap 退出码当作脚本退出码
