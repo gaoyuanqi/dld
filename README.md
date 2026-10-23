@@ -153,16 +153,6 @@ cargo doc --open
 - **`dw`** — 玩法层：任务调度与各玩法任务实现
 - **`cli`** — 命令行解析
 
-## 许可证
-
-[MIT](LICENSE) © 2026 雨园
-
-本项目基于 MIT 许可证开源，可自由使用、修改和分发
-
-## 问题反馈
-
-遇到问题请到 [GitHub Issues](https://github.com/gaoyuanqi/dld/issues) 提交反馈
-
 ## 常见问题
 
 ### 如何卸载？
@@ -236,7 +226,27 @@ https://dld.qzapp.z.qq.com/qpet/cgi-bin/phonepk?
 例子：
 
 ```
-00:00:00 | 123456 | xx：响应格式异常（cmd=getawardbyrank&op=0）：missing field `result` at line 1 column 61
+00:00:00 | 123456 | xx：响应格式异常（cmd=xx）：xx
 ```
 
 原因：系统繁忙、等级太低任务未开放、帮派门派问题
+
+## 许可证
+
+[MIT](LICENSE) © 2026 雨园
+
+本项目基于 MIT 许可证开源，可自由使用、修改和分发
+
+## 问题反馈
+
+遇到问题请到 [GitHub Issues](https://github.com/gaoyuanqi/dld/issues) 提交反馈
+
+## 参与贡献
+
+### 提交缺失诗句
+
+游戏新增诗句而工具报「诗句库未收录」时，欢迎直接提交 PR 补充：
+
+1. 编辑 `src/dw/tasks/chong_yang_tai_bai_shi_hui.rs`，把 `("上句", "下句")` 格式的诗对追加到 `诗句` 常量，五言跟在五言组末尾、七言跟在七言组末尾
+2. 运行 `cargo fmt && cargo clippy -- -D warnings && cargo test` 验证（分组或配对不对测试会报错）
+3. 提交 PR，CI 会自动检查格式与全部测试
