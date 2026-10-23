@@ -5,7 +5,7 @@
 //! ```text
 //! <data_dir>/
 //!   global_config.json     全局配置
-//!   cookies/               Cookie 文件（<qq>.txt）
+//!   cookies.json           账号 Cookie
 //!   config/                账号配置（<qq>.json）
 //!   logs/                  运行日志
 //! ```
