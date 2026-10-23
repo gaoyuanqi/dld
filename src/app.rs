@@ -6,13 +6,13 @@
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use reqwest::Client;
 use serde_json::Value;
 use tokio::sync::Semaphore;
-use tokio::sync::mpsc::channel;
+use tokio::sync::mpsc::{Sender, channel};
 
 use crate::core::accounts::{Account, AccountStore};
 use crate::core::client::{self, DaLeDouClient};
@@ -121,14 +121,9 @@ impl App {
     /// 执行任务（`task` 为 `None` 表示执行全部）
     async fn execute(&self, task: Option<Task>, qq: Option<String>) -> Result<()> {
         let global_config = Arc::new(GlobalConfig::load(self.paths.global_config_file())?);
+        let accounts = self.resolve_accounts(qq.as_deref())?;
 
-        let accounts = match qq {
-            Some(q) => vec![self.accounts.find(&q)?],
-            None => self.accounts.load_all()?,
-        };
-
-        let max_concurrency = global_config.运行时.并发数 as usize;
-        let semaphore = Arc::new(Semaphore::new(max_concurrency));
+        let semaphore = Arc::new(Semaphore::new(global_config.运行时.并发数 as usize));
         let started = Instant::now();
 
         // 日志通道：各账号任务发送日志，单一 writer 统一输出并落盘
@@ -145,32 +140,15 @@ impl App {
             .into_iter()
             .map(|acc| {
                 let qq = acc.qq.clone();
-                let sem = semaphore.clone();
-                let http_client = self.http_client.clone();
-                let paths = self.paths.clone();
-                let task = task.clone();
-                let global_config = global_config.clone();
-                let log_tx = log_tx.clone();
-                let handle = tokio::spawn(async move {
-                    let _permit = sem.acquire_owned().await;
-
-                    let config_path = paths.config_dir().join(format!("{}.json", acc.qq));
-                    let config = AccountConfig::load(&config_path)?;
-
-                    let logger = Logger::new(paths.logs_dir(), &acc.qq, log_tx)?;
-                    let client = DaLeDouClient::new(&http_client, &acc.record.cookie);
-                    let d = DaLeDou::new(&acc.qq, client, logger, global_config, config);
-
-                    match &task {
-                        Some(t) => Self::run_one(&d, t).await?,
-                        None => {
-                            for task in Task::all() {
-                                Self::run_one(&d, task).await?;
-                            }
-                        }
-                    }
-                    Ok::<_, anyhow::Error>(())
-                });
+                let handle = tokio::spawn(run_account(
+                    acc,
+                    task.clone(),
+                    self.http_client.clone(),
+                    self.paths.clone(),
+                    global_config.clone(),
+                    semaphore.clone(),
+                    log_tx.clone(),
+                ));
                 (qq, handle)
             })
             .collect();
@@ -189,27 +167,19 @@ impl App {
         drop(log_tx);
         let _ = log_writer.await;
 
-        let elapsed = started.elapsed();
-        let succeeded = total - failures.len();
-        if failures.is_empty() {
-            println!(
-                "\n{succeeded}/{total} 个账号全部执行成功，耗时 {:.0?}",
-                elapsed
-            );
-        } else {
-            eprintln!(
-                "\n{succeeded}/{total} 成功，{} 失败，耗时 {:.0?}：",
-                failures.len(),
-                elapsed
-            );
-            for (qq, msg) in &failures {
-                eprintln!("  {qq}: {msg}");
-            }
-        }
+        report_results(total, &failures, started.elapsed());
 
         cleanup_old_logs(self.paths.logs_dir(), global_config.运行时.日志保留天数);
 
         Ok(())
+    }
+
+    /// 解析执行对象：指定 QQ 时查询单个账号，否则加载全部
+    fn resolve_accounts(&self, qq: Option<&str>) -> Result<Vec<Account>> {
+        match qq {
+            Some(q) => Ok(vec![self.accounts.find(q)?]),
+            None => self.accounts.load_all(),
+        }
     }
 
     /// 执行单个任务并检查是否失效或维护
@@ -224,6 +194,52 @@ impl App {
             anyhow::bail!("大乐斗维护中");
         }
         Ok(())
+    }
+}
+
+/// 执行单个账号的任务（`task` 为 `None` 表示执行全部），并发由信号量控制
+async fn run_account(
+    acc: Account,
+    task: Option<Task>,
+    http_client: Client,
+    paths: Paths,
+    global_config: Arc<GlobalConfig>,
+    semaphore: Arc<Semaphore>,
+    log_tx: Sender<LogMessage>,
+) -> Result<()> {
+    let _permit = semaphore.acquire_owned().await;
+
+    let config_path = paths.config_dir().join(format!("{}.json", acc.qq));
+    let config = AccountConfig::load(&config_path)?;
+
+    let logger = Logger::new(paths.logs_dir(), &acc.qq, log_tx)?;
+    let client = DaLeDouClient::new(&http_client, &acc.record.cookie);
+    let d = DaLeDou::new(&acc.qq, client, logger, global_config, config);
+
+    match &task {
+        Some(t) => App::run_one(&d, t).await?,
+        None => {
+            for task in Task::all() {
+                App::run_one(&d, task).await?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// 打印任务执行统计（成功/失败数与耗时）
+fn report_results(total: usize, failures: &[(String, String)], elapsed: Duration) {
+    let succeeded = total - failures.len();
+    if failures.is_empty() {
+        println!("\n{succeeded}/{total} 个账号全部执行成功，耗时 {elapsed:.0?}");
+    } else {
+        eprintln!(
+            "\n{succeeded}/{total} 成功，{} 失败，耗时 {elapsed:.0?}：",
+            failures.len(),
+        );
+        for (qq, msg) in failures {
+            eprintln!("  {qq}: {msg}");
+        }
     }
 }
 
