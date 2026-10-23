@@ -37,9 +37,13 @@ pub async fn run(d: &DaLeDou) {
 struct Query {
     result: String,
     msg: String,
-    show_poetry: String,   // 诗仙口令提示
-    day_gift: String,      // 是否可领重阳礼包
-    poetry_gift: String,   // 是否可以领取赋诗奖赏礼包
+    #[serde(default)]
+    show_poetry: String, // 诗仙口令提示
+    #[serde(default)]
+    day_gift: String, // 是否可领重阳礼包
+    #[serde(default)]
+    poetry_gift: String, // 是否可以领取赋诗奖赏礼包
+    #[serde(default)]
     upload_poetry: String, // 是否可以提交口令
 }
 
