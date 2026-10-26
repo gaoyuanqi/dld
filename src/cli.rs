@@ -79,7 +79,7 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
-    /// 报名、助威、领斗币
+    /// 报名无限制区、领斗币、助威、领奖
     结拜 {
         #[command(flatten)]
         qq: QqArg,

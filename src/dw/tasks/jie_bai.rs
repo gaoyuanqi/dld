@@ -1,6 +1,6 @@
 //! 结拜
 //!
-//! 报名、助威（无限制区霸者之王）、领奖、领斗币
+//! 报名无限制区、领斗币、助威（无限制区霸者之王）、领奖
 
 use serde::Deserialize;
 
@@ -24,15 +24,14 @@ pub async fn run(d: &DaLeDou) {
         has_sign_flag: String, // 是否已报名
         #[serde(rename = "signTime")]
         sign_time: String, // 是否报名期
-        #[serde(rename = "signInfo")]
-        sign_info: String, // 报名信息
         #[serde(rename = "isSeaFighting")]
         is_sea_fighting: String, // 是否海选战斗中
         #[serde(rename = "isTopFighting")]
         is_top_fighting: String, // 是否决赛战斗中
     }
 
-    let data: Query = match d.get("cmd=brofight&subtype=0").await {
+    // 无限制区
+    let data: Query = match d.get("cmd=brofight&subtype=0&gid=5").await {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("{e}"));
@@ -52,12 +51,10 @@ pub async fn run(d: &DaLeDou) {
 
     // 报名期
     if data.sign_time == "1" {
-        // 已报名
-        if data.has_sign_flag == "1" {
-            d.log(TASK, &data.sign_info);
-            return;
+        // 未报名
+        if data.has_sign_flag == "0" {
+            报名无限制区(d, &data.ground_id).await;
         }
-        报名(d, &data.ground_id).await;
         return;
     }
 
@@ -67,7 +64,7 @@ pub async fn run(d: &DaLeDou) {
     }
 }
 
-async fn 报名(d: &DaLeDou, ground_id: &str) {
+async fn 报名无限制区(d: &DaLeDou, ground_id: &str) {
     // 报名
     let cmd = format!("cmd=brofight&subtype=6&ground_id={ground_id}");
     let data: Response = match d.get(&cmd).await {
