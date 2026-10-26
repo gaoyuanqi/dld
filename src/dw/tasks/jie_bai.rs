@@ -62,7 +62,7 @@ pub async fn run(d: &DaLeDou) {
 
     // 非报名期：查战况视图决定助威还是领奖
     if data.sign_time == "0" {
-        战况(d, &data.ground_id).await;
+        战况(d).await;
     }
 }
 
@@ -135,7 +135,7 @@ async fn 领取斗币(d: &DaLeDou, uin: &str) {
     d.log(TASK, &data.msg);
 }
 
-async fn 战况(d: &DaLeDou, ground_id: &str) {
+async fn 战况(d: &DaLeDou) {
     #[derive(Deserialize)]
     struct ZhanKuang {
         result: String,
@@ -145,9 +145,8 @@ async fn 战况(d: &DaLeDou, ground_id: &str) {
         has_cheer: String, // 是否已助威
     }
 
-    // 助威页面
-    let cmd = format!("cmd=brofight&subtype=13&gid={ground_id}");
-    let data: ZhanKuang = match d.get(&cmd).await {
+    // 无限制区助威数据
+    let data: ZhanKuang = match d.get("cmd=brofight&subtype=13&gid=5").await {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("{e}"));
@@ -165,8 +164,8 @@ async fn 战况(d: &DaLeDou, ground_id: &str) {
         return;
     }
 
-    // 非助威时段 → 领奖
-    if data.cheer_time == "0" {
+    // 非助威时段且已助威 → 领奖
+    if data.cheer_time == "0" && data.has_cheer == "1" {
         领奖(d).await;
     }
 }
