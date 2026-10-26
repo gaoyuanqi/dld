@@ -55,6 +55,8 @@ pub async fn run(d: &DaLeDou) {
         if data.has_sign_flag == "0" {
             报名无限制区(d, &data.ground_id).await;
         }
+
+        领斗币(d).await;
         return;
     }
 
@@ -67,6 +69,61 @@ pub async fn run(d: &DaLeDou) {
 async fn 报名无限制区(d: &DaLeDou, ground_id: &str) {
     // 报名
     let cmd = format!("cmd=brofight&subtype=6&ground_id={ground_id}");
+    let data: Response = match d.get(&cmd).await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    d.log(TASK, &data.msg);
+}
+
+async fn 领斗币(d: &DaLeDou) {
+    #[derive(Deserialize)]
+    struct Ground {
+        result: String,
+        msg: String,
+        #[serde(rename = "groundList")]
+        ground_list: Vec<Team>,
+    }
+
+    #[derive(Deserialize)]
+    struct Team {
+        uin: String,
+        #[serde(rename = "remainMoney")]
+        remain_money: String,
+    }
+
+    for gid in 1..=5 {
+        // 领斗币页面
+        let cmd = format!("cmd=brofight&subtype=0&gid={gid}");
+        let data: Ground = match d.get(&cmd).await {
+            Ok(v) => v,
+            Err(e) => {
+                d.log(TASK, &format!("{e}"));
+                return;
+            }
+        };
+
+        if data.result != "0" {
+            d.log(TASK, &data.msg);
+            return;
+        }
+
+        for team in &data.ground_list {
+            if team.remain_money != "0" {
+                领取斗币(d, &team.uin).await;
+                return;
+            }
+        }
+    }
+}
+
+async fn 领取斗币(d: &DaLeDou, uin: &str) {
+    // 领斗币
+    let cmd = format!("cmd=brofight&subtype=1&player_uin={}", uin);
     let data: Response = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
@@ -108,10 +165,9 @@ async fn 战况(d: &DaLeDou, ground_id: &str) {
         return;
     }
 
-    // 非助威时段 → 领奖、领斗币
+    // 非助威时段 → 领奖
     if data.cheer_time == "0" {
         领奖(d).await;
-        斗币福利(d).await;
     }
 }
 
@@ -131,61 +187,6 @@ async fn 助威(d: &DaLeDou) {
 async fn 领奖(d: &DaLeDou) {
     // 领奖
     let data: Response = match d.get("cmd=brofight&subtype=16").await {
-        Ok(v) => v,
-        Err(e) => {
-            d.log(TASK, &format!("{e}"));
-            return;
-        }
-    };
-
-    d.log(TASK, &data.msg);
-}
-
-async fn 斗币福利(d: &DaLeDou) {
-    #[derive(Deserialize)]
-    struct Ground {
-        result: String,
-        msg: String,
-        #[serde(rename = "groundList")]
-        ground_list: Vec<Team>,
-    }
-
-    #[derive(Deserialize)]
-    struct Team {
-        uin: String,
-        #[serde(rename = "remainMoney")]
-        remain_money: String,
-    }
-
-    for gid in 1..=5 {
-        // 领斗币页面
-        let cmd = format!("cmd=brofight&subtype=0&gid={gid}");
-        let data: Ground = match d.get(&cmd).await {
-            Ok(v) => v,
-            Err(e) => {
-                d.log(TASK, &format!("{e}"));
-                return;
-            }
-        };
-
-        if data.result != "0" {
-            d.log(TASK, &data.msg);
-            return;
-        }
-
-        for team in &data.ground_list {
-            if team.remain_money != "0" {
-                领斗币(d, &team.uin).await;
-                return;
-            }
-        }
-    }
-}
-
-async fn 领斗币(d: &DaLeDou, uin: &str) {
-    // 领斗币
-    let cmd = format!("cmd=brofight&subtype=1&player_uin={}", uin);
-    let data: Response = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("{e}"));
