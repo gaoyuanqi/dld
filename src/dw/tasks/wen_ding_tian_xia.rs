@@ -14,6 +14,7 @@
 //!   left_times=4 → 2 次（1 级 1 次 + 3 级 1 次）
 //!   left_times=3 → 1 次（仅 3 级 1 次）
 //!   left_times≤2 → 不打
+//!
 //! 如果成功攻占一级资源点则放弃
 
 use std::cmp;
@@ -196,16 +197,19 @@ async fn 资源点争夺(d: &DaLeDou) {
         return;
     };
     if level_1_count > 0 {
-        let Some(level_1_data) = data.level_1_territories.first() else {
+        let Some(level_1_data) = data
+            .level_1_territories
+            .iter()
+            .find(|t| t.owner_combat_points != "0.0")
+        else {
             return;
         };
 
         for _ in 0..level_1_count {
-            if !攻占(d, &level_1_data.canoncial_id, region_id).await {
-                continue;
+            // 成功占领则放弃
+            if 攻占(d, &level_1_data.canoncial_id, region_id).await {
+                放弃(d).await;
             }
-
-            放弃(d).await;
         }
     }
 
@@ -213,27 +217,10 @@ async fn 资源点争夺(d: &DaLeDou) {
         return;
     };
 
-    // 不是空资源点
-    if level_3_data.owner_combat_points != "0.0" {
-        return;
+    // 攻占3级最后一个空资源点
+    if level_3_data.owner_combat_points == "0.0" {
+        攻占(d, &level_3_data.canoncial_id, region_id).await;
     }
-
-    攻占(d, &level_3_data.canoncial_id, region_id).await;
-}
-
-/// 计算攻占计划：返回 1 级资源点攻占次数（3 级固定最后 1 次）
-/// 付费攻占使用全部次数，免费攻占至多 3 次（扣除固定 2 次付费次数）
-/// 返回 None 表示无可用攻占次数
-fn calc_attack_count(left_times: u32, is_paid: bool) -> Option<u32> {
-    let total = if is_paid {
-        left_times
-    } else {
-        cmp::min(3, left_times.saturating_sub(2))
-    };
-    if total == 0 {
-        return None;
-    }
-    Some(total - 1)
 }
 
 #[derive(Deserialize)]
@@ -280,6 +267,21 @@ async fn region(d: &DaLeDou, region: &str) -> Option<Region> {
     Some(data)
 }
 
+/// 计算攻占计划：返回 1 级资源点攻占次数（3 级固定最后 1 次）
+/// 付费攻占使用全部次数，免费攻占至多 3 次（扣除固定 2 次付费次数）
+/// 返回 None 表示无可用攻占次数
+fn calc_attack_count(left_times: u32, is_paid: bool) -> Option<u32> {
+    let total = if is_paid {
+        left_times
+    } else {
+        cmp::min(3, left_times.saturating_sub(2))
+    };
+    if total == 0 {
+        return None;
+    }
+    Some(total - 1)
+}
+
 async fn 攻占(d: &DaLeDou, id: &str, region_id: &str) -> bool {
     // 攻占
     let cmd = format!("cmd=tbattle&op=occupy&id={id}&region={region_id}");
@@ -296,7 +298,7 @@ async fn 攻占(d: &DaLeDou, id: &str, region_id: &str) -> bool {
         return false;
     }
 
-    time::sleep(Duration::from_millis(100)).await;
+    time::sleep(Duration::from_millis(200)).await;
     data.msg.contains("成功占领资源点")
 }
 
