@@ -217,7 +217,11 @@ async fn get_item_num(d: &DaLeDou, name: &str) -> Option<u32> {
         return None;
     }
 
-    let bag = data.bag.iter().find(|i| i.name == name)?;
+    // 背包中没有该香炉，说明数量为 0
+    let Some(bag) = data.bag.iter().find(|i| i.name == name) else {
+        return Some(0);
+    };
+
     let num: u32 = match bag.num.parse() {
         Ok(v) => v,
         Err(e) => {
