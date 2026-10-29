@@ -25,22 +25,18 @@ pub async fn run(d: &DaLeDou) {
         return;
     };
 
+    // 先处理进行中的副本：同时只能有一个副本进行中，
+    // 如果进行中的副本没有收尾，跑空闲副本会报错
     for item in &data.copy_list {
-        // 跳过已过活动时间的副本
-        if item.status == "0" {
-            continue;
+        if item.status == "2" {
+            匹配副本(d, item).await;
         }
+    }
 
-        match item.name.as_str() {
-            "柒承的忙碌日常" => 跑副本(d, item, 副本::柒承).await,
-            "倚天屠龙归我心" => 跑副本(d, item, 副本::倚天).await,
-            "绝世秘籍之争" => 跑副本(d, item, 副本::绝世).await,
-            "桃花自古笑春风" => 跑副本(d, item, 副本::桃花).await,
-            "战乱襄阳" => 跑副本(d, item, 副本::战乱).await,
-            "天涯浪子" => 跑副本(d, item, 副本::天涯).await,
-            "全真古墓意难平" => 跑副本(d, item, 副本::全真).await,
-            "南海有岛名侠客" => 跑副本(d, item, 副本::南海).await,
-            _ => continue,
+    // 再处理空闲副本
+    for item in &data.copy_list {
+        if item.status == "1" {
+            匹配副本(d, item).await;
         }
     }
 
@@ -50,6 +46,21 @@ pub async fn run(d: &DaLeDou) {
     }
 
     兑换商店(d).await;
+}
+
+/// 按副本名称分发到对应事件逻辑，未知副本直接忽略
+async fn 匹配副本(d: &DaLeDou, item: &CopyList) {
+    match item.name.as_str() {
+        "柒承的忙碌日常" => 跑副本(d, item, 副本::柒承).await,
+        "倚天屠龙归我心" => 跑副本(d, item, 副本::倚天).await,
+        "绝世秘籍之争" => 跑副本(d, item, 副本::绝世).await,
+        "桃花自古笑春风" => 跑副本(d, item, 副本::桃花).await,
+        "战乱襄阳" => 跑副本(d, item, 副本::战乱).await,
+        "天涯浪子" => 跑副本(d, item, 副本::天涯).await,
+        "全真古墓意难平" => 跑副本(d, item, 副本::全真).await,
+        "南海有岛名侠客" => 跑副本(d, item, 副本::南海).await,
+        _ => {}
+    }
 }
 
 #[derive(Deserialize)]
