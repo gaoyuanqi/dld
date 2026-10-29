@@ -658,6 +658,8 @@ pub struct ChangMengCopy {
     pub 天涯浪子: u32,
     /// 执行次数上限，0~200
     pub 全真古墓意难平: u32,
+    /// 执行次数上限，0~200
+    pub 南海有岛名侠客: u32,
 }
 
 impl ChangMengCopy {
@@ -671,6 +673,7 @@ impl ChangMengCopy {
             "战乱襄阳" => self.战乱襄阳,
             "天涯浪子" => self.天涯浪子,
             "全真古墓意难平" => self.全真古墓意难平,
+            "南海有岛名侠客" => self.南海有岛名侠客,
             _ => 0,
         }
     }
@@ -683,6 +686,7 @@ impl ChangMengCopy {
         validate_range!("江湖长梦.副本.战乱襄阳", self.战乱襄阳, 0, 200);
         validate_range!("江湖长梦.副本.天涯浪子", self.天涯浪子, 0, 200);
         validate_range!("江湖长梦.副本.全真古墓意难平", self.全真古墓意难平, 0, 200);
+        validate_range!("江湖长梦.副本.南海有岛名侠客", self.南海有岛名侠客, 0, 200);
         Ok(())
     }
 }
@@ -1397,6 +1401,7 @@ mod tests {
             战乱襄阳: 7,
             天涯浪子: 8,
             全真古墓意难平: 9,
+            南海有岛名侠客: 10,
         };
         assert_eq!(copy.limit("柒承的忙碌日常"), 3);
         assert_eq!(copy.limit("倚天屠龙归我心"), 4);
@@ -1405,6 +1410,7 @@ mod tests {
         assert_eq!(copy.limit("战乱襄阳"), 7);
         assert_eq!(copy.limit("天涯浪子"), 8);
         assert_eq!(copy.limit("全真古墓意难平"), 9);
+        assert_eq!(copy.limit("南海有岛名侠客"), 10);
         assert_eq!(copy.limit("未知副本"), 0);
     }
 
@@ -1418,6 +1424,7 @@ mod tests {
         assert!(load_account(r#"{"江湖长梦": {"副本": {"战乱襄阳": 201}}}"#).is_err());
         assert!(load_account(r#"{"江湖长梦": {"副本": {"天涯浪子": 201}}}"#).is_err());
         assert!(load_account(r#"{"江湖长梦": {"副本": {"全真古墓意难平": 201}}}"#).is_err());
+        assert!(load_account(r#"{"江湖长梦": {"副本": {"南海有岛名侠客": 201}}}"#).is_err());
     }
 
     // 江湖长梦副本执行次数边界值合法

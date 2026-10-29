@@ -39,6 +39,7 @@ pub async fn run(d: &DaLeDou) {
             "战乱襄阳" => 跑副本(d, item, 副本::战乱).await,
             "天涯浪子" => 跑副本(d, item, 副本::天涯).await,
             "全真古墓意难平" => 跑副本(d, item, 副本::全真).await,
+            "南海有岛名侠客" => 跑副本(d, item, 副本::南海).await,
             _ => continue,
         }
     }
@@ -94,6 +95,7 @@ enum 副本 {
     战乱,
     天涯,
     全真,
+    南海,
 }
 
 /// 副本主流程：处理香炉、胜负、天数推进，事件选择交给 `kind` 对应的事件处理函数
@@ -166,6 +168,7 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
                 副本::战乱 => 战乱事件(d, &data, &copy.name, cur_days).await,
                 副本::天涯 => 天涯事件(d, &data, &copy.name, cur_days).await,
                 副本::全真 => 全真事件(d, &data, &copy.name, cur_days).await,
+                副本::南海 => 南海事件(d, &data, &copy.name, cur_days).await,
             };
             if let Some(v) = v {
                 data = v;
@@ -432,6 +435,35 @@ async fn 全真事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32)
     // 坚持本心
     奇遇选项(d, copy_name, "2").await;
     // 李莫愁
+    return 奇遇选项(d, copy_name, "2").await;
+}
+
+/// 最多400金币
+async fn 南海事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32) -> Option<Begin> {
+    if let Some(id) = 战斗(data) {
+        return 选择事件(d, copy_name, id).await;
+    }
+
+    if cur_days == 1 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 即刻前往
+        return 奇遇选项(d, copy_name, "1").await;
+    }
+
+    if cur_days == 3 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 龙岛主
+        奇遇选项(d, copy_name, "1").await;
+        // 岛中闲逛
+        return 奇遇选项(d, copy_name, "2").await;
+    }
+
+    // cur_days == 5
+    let id = 奇遇(data)?;
+    选择事件(d, copy_name, id).await?;
+    // 采摘野果
     return 奇遇选项(d, copy_name, "2").await;
 }
 
