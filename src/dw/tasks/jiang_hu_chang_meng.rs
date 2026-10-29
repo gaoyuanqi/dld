@@ -38,6 +38,7 @@ pub async fn run(d: &DaLeDou) {
             "桃花自古笑春风" => 跑副本(d, item, 副本::桃花).await,
             "战乱襄阳" => 跑副本(d, item, 副本::战乱).await,
             "天涯浪子" => 跑副本(d, item, 副本::天涯).await,
+            "全真古墓意难平" => 跑副本(d, item, 副本::全真).await,
             _ => continue,
         }
     }
@@ -92,6 +93,7 @@ enum 副本 {
     桃花,
     战乱,
     天涯,
+    全真,
 }
 
 /// 副本主流程：处理香炉、胜负、天数推进，事件选择交给 `kind` 对应的事件处理函数
@@ -163,6 +165,7 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
                 副本::桃花 => 桃花事件(d, &data, &copy.name, cur_days).await,
                 副本::战乱 => 战乱事件(d, &data, &copy.name, cur_days).await,
                 副本::天涯 => 天涯事件(d, &data, &copy.name, cur_days).await,
+                副本::全真 => 全真事件(d, &data, &copy.name, cur_days).await,
             };
             if let Some(v) = v {
                 data = v;
@@ -387,6 +390,49 @@ async fn 天涯事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32)
 
     let id = 战斗(data)?;
     选择事件(d, copy_name, id).await
+}
+
+/// 最多561金币
+async fn 全真事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32) -> Option<Begin> {
+    if let Some(id) = 战斗(data) {
+        return 选择事件(d, copy_name, id).await;
+    }
+
+    if cur_days == 1 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 宅家乐斗
+        return 奇遇选项(d, copy_name, "2").await;
+    }
+
+    if cur_days == 2 {
+        // 奇遇（等级1）固定第二个位置
+        选择事件(d, copy_name, 2).await?;
+        // 全真剑法
+        return 奇遇选项(d, copy_name, "3").await;
+    }
+
+    if cur_days == 3 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 环顾四周
+        return 奇遇选项(d, copy_name, "1").await;
+    }
+
+    if cur_days == 6 {
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 暂且撤退
+        return 奇遇选项(d, copy_name, "2").await;
+    }
+
+    // cur_days == 7
+    let id = 奇遇(data)?;
+    选择事件(d, copy_name, id).await?;
+    // 坚持本心
+    奇遇选项(d, copy_name, "2").await;
+    // 李莫愁
+    return 奇遇选项(d, copy_name, "2").await;
 }
 
 /// 优先金币最多的战斗，无金币数字时回退首个任意战斗
