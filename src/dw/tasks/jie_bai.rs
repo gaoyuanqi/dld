@@ -1,6 +1,11 @@
 //! 结拜
 //!
-//! 报名无限制区、领斗币、助威（无限制区霸者之王）、领奖
+//! 报名无限制区、助威（无限制区霸者之王）、领奖、领斗币
+//!
+//! 报名时间：周一12点~周三13点
+//! 助威时间：周四0点~周五19点50
+//! 助威领奖时间：周五决赛打完（20点之后）~下周一6点
+//! 领斗币时间：跟助威领奖时间一致
 
 use serde::Deserialize;
 
@@ -55,13 +60,8 @@ pub async fn run(d: &DaLeDou) {
         if data.has_sign_flag == "0" {
             报名无限制区(d, &data.ground_id).await;
         }
-
-        领斗币(d).await;
-        return;
-    }
-
-    // 非报名期：查战况视图决定助威还是领奖
-    if data.sign_time == "0" {
+    } else if data.sign_time == "0" {
+        // 非报名期
         战况(d).await;
     }
 }
@@ -70,6 +70,65 @@ async fn 报名无限制区(d: &DaLeDou, ground_id: &str) {
     // 报名
     let cmd = format!("cmd=brofight&subtype=6&ground_id={ground_id}");
     let data: Response = match d.get(&cmd).await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    d.log(TASK, &data.msg);
+}
+
+async fn 战况(d: &DaLeDou) {
+    #[derive(Deserialize)]
+    struct ZhanKuang {
+        result: String,
+        #[serde(rename = "cheerTime")]
+        cheer_time: String, // 是否助威时间
+        #[serde(rename = "hasCheer")]
+        has_cheer: String, // 是否已助威
+    }
+
+    // 无限制区助威数据
+    let data: ZhanKuang = match d.get("cmd=brofight&subtype=13&gid=5").await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    if data.result != "0" {
+        return;
+    }
+
+    // 助威时间还没有助威
+    if data.cheer_time == "1" && data.has_cheer == "0" {
+        助威(d).await;
+    } else if data.cheer_time == "0" && data.has_cheer == "1" {
+        // 非助威时间已助威
+        领奖(d).await;
+        领斗币(d).await;
+    }
+}
+
+async fn 助威(d: &DaLeDou) {
+    // 助威霸者之王
+    let data: Response = match d.get("cmd=brofight&subtype=2&team_id=6425586").await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{e}"));
+            return;
+        }
+    };
+
+    d.log(TASK, &data.msg);
+}
+
+async fn 领奖(d: &DaLeDou) {
+    // 领奖
+    let data: Response = match d.get("cmd=brofight&subtype=16").await {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("{e}"));
@@ -125,67 +184,6 @@ async fn 领取斗币(d: &DaLeDou, uin: &str) {
     // 领斗币
     let cmd = format!("cmd=brofight&subtype=1&player_uin={}", uin);
     let data: Response = match d.get(&cmd).await {
-        Ok(v) => v,
-        Err(e) => {
-            d.log(TASK, &format!("{e}"));
-            return;
-        }
-    };
-
-    d.log(TASK, &data.msg);
-}
-
-async fn 战况(d: &DaLeDou) {
-    #[derive(Deserialize)]
-    struct ZhanKuang {
-        result: String,
-        #[serde(rename = "cheerTime")]
-        cheer_time: String, // 是否助威时间
-        #[serde(rename = "hasCheer")]
-        has_cheer: String, // 是否已助威
-    }
-
-    // 无限制区助威数据
-    let data: ZhanKuang = match d.get("cmd=brofight&subtype=13&gid=5").await {
-        Ok(v) => v,
-        Err(e) => {
-            d.log(TASK, &format!("{e}"));
-            return;
-        }
-    };
-
-    if data.result != "0" {
-        return;
-    }
-
-    // 助威时段未助威 → 助威
-    if data.cheer_time == "1" && data.has_cheer == "0" {
-        助威(d).await;
-        return;
-    }
-
-    // 非助威时段且已助威 → 领奖
-    if data.cheer_time == "0" && data.has_cheer == "1" {
-        领奖(d).await;
-    }
-}
-
-async fn 助威(d: &DaLeDou) {
-    // 助威霸者之王
-    let data: Response = match d.get("cmd=brofight&subtype=2&team_id=6425586").await {
-        Ok(v) => v,
-        Err(e) => {
-            d.log(TASK, &format!("{e}"));
-            return;
-        }
-    };
-
-    d.log(TASK, &data.msg);
-}
-
-async fn 领奖(d: &DaLeDou) {
-    // 领奖
-    let data: Response = match d.get("cmd=brofight&subtype=16").await {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("{e}"));
