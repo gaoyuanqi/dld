@@ -36,7 +36,7 @@ pub async fn run(d: &DaLeDou) {
     }
 
     // 无限制区
-    let data: Query = match d.get("cmd=brofight&subtype=0&gid=5").await {
+    let data: Query = match d.get("cmd=brofight&subtype=0&gid=4").await {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("{e}"));
