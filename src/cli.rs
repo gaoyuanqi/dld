@@ -79,11 +79,6 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
-    /// 报名无限制区、助威、领奖、领斗币
-    结拜 {
-        #[command(flatten)]
-        qq: QqArg,
-    },
     /// 报名
     侠侣 {
         #[command(flatten)]
@@ -136,6 +131,11 @@ enum Command {
     },
     /// 使用锦囊类、以宝箱结尾及配置的物品
     背包 {
+        #[command(flatten)]
+        qq: QqArg,
+    },
+    /// 报名无限制区、助威、领奖、领斗币
+    结拜 {
         #[command(flatten)]
         qq: QqArg,
     },
@@ -445,6 +445,11 @@ enum Command {
         qq: QqArg,
     },
     /// 领取
+    冬季回馈 {
+        #[command(flatten)]
+        qq: QqArg,
+    },
+    /// 领取
     大侠回归 {
         #[command(flatten)]
         qq: QqArg,
@@ -492,7 +497,6 @@ pub async fn parse_args() -> Result<()> {
         Command::分享 { qq } => app.run_task(Task::分享, qq.qq).await?,
         Command::乐斗 { qq } => app.run_task(Task::乐斗, qq.qq).await?,
         Command::武林 { qq } => app.run_task(Task::武林, qq.qq).await?,
-        Command::结拜 { qq } => app.run_task(Task::结拜, qq.qq).await?,
         Command::侠侣 { qq } => app.run_task(Task::侠侣, qq.qq).await?,
         Command::群侠 { qq } => app.run_task(Task::群侠, qq.qq).await?,
         Command::矿洞 { qq } => app.run_task(Task::矿洞, qq.qq).await?,
@@ -504,6 +508,7 @@ pub async fn parse_args() -> Result<()> {
         Command::门派 { qq } => app.run_task(Task::门派, qq.qq).await?,
         Command::会武 { qq } => app.run_task(Task::会武, qq.qq).await?,
         Command::背包 { qq } => app.run_task(Task::背包, qq.qq).await?,
+        Command::结拜 { qq } => app.run_task(Task::结拜, qq.qq).await?,
         Command::竞技场 { qq } => app.run_task(Task::竞技场, qq.qq).await?,
         Command::十二宫 { qq } => app.run_task(Task::十二宫, qq.qq).await?,
         Command::抢地盘 { qq } => app.run_task(Task::抢地盘, qq.qq).await?,
@@ -565,6 +570,7 @@ pub async fn parse_args() -> Result<()> {
         Command::乐斗菜单 { qq } => app.run_task(Task::乐斗菜单, qq.qq).await?,
         Command::幸运转盘 { qq } => app.run_task(Task::幸运转盘, qq.qq).await?,
         Command::金秋回馈 { qq } => app.run_task(Task::金秋回馈, qq.qq).await?,
+        Command::冬季回馈 { qq } => app.run_task(Task::冬季回馈, qq.qq).await?,
         Command::大侠回归 { qq } => app.run_task(Task::大侠回归, qq.qq).await?,
         Command::登录商店 { qq } => app.run_task(Task::登录商店, qq.qq).await?,
         Command::豪侠出世 { qq } => app.run_task(Task::豪侠出世, qq.qq).await?,

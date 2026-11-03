@@ -8,6 +8,7 @@ mod da_xia_hui_gui;
 mod deng_lu_shang_dian;
 mod deng_lu_you_li;
 mod dian_feng_zhi_zhan;
+mod dong_ji_hui_kui;
 mod dou_jing_tan_mi;
 mod dui_huan_ma;
 mod fei_sheng;
@@ -188,6 +189,7 @@ tasks! {
     乐斗菜单 => le_dou_cai_dan,
     幸运转盘 => xing_yun_zhuan_pan,
     金秋回馈 => jin_qiu_hui_kui,
+    冬季回馈 => dong_ji_hui_kui,
     大侠回归 => da_xia_hui_gui,
     登录商店 => deng_lu_shang_dian,
     豪侠出世 => hao_xia_chu_shi,
@@ -203,7 +205,7 @@ mod tests {
     // 任务列表数量：锁定登记完整性，防止重构时漏任务
     #[test]
     fn test_task_all_count() {
-        assert_eq!(Task::all().len(), 82);
+        assert_eq!(Task::all().len(), 83);
     }
 
     // 任务列表不允许重复
