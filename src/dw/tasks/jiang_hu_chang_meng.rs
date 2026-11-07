@@ -116,7 +116,7 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
         return;
     }
 
-    let Some(mut num) = get_item_num(d, &copy.use_desc).await else {
+    let Some(mut num) = get_item_num(d, &copy.name, &copy.use_desc).await else {
         return;
     };
 
@@ -129,14 +129,14 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
     }
 
     for _ in 0..num {
-        let Some(mut data) = 开启副本(d, &copy.id).await else {
+        let Some(mut data) = 开启副本(d, &copy.name, &copy.id).await else {
             return;
         };
 
         loop {
             // 战败
             if data.win == "1" {
-                结束回忆(d).await;
+                结束回忆(d, &copy.name).await;
                 return;
             }
 
@@ -157,7 +157,7 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
             };
 
             if cur_days > max_days {
-                if !结束回忆(d).await {
+                if !结束回忆(d, &copy.name).await {
                     return;
                 }
                 break;
@@ -200,7 +200,7 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
 
     // 所有次数执行完毕后再领取首通奖励；未执行（无香炉的空闲副本）不领取
     if num > 0 {
-        领取首通奖励(d, &copy.id).await;
+        领取首通奖励(d, &copy.name, &copy.id).await;
     }
 }
 
@@ -217,19 +217,19 @@ struct Bag {
     num: String,
 }
 
-async fn get_item_num(d: &DaLeDou, name: &str) -> Option<u32> {
+async fn get_item_num(d: &DaLeDou, copy_name: &str, name: &str) -> Option<u32> {
     // 背包
     let cmd = format!("cmd=view&kind=0&sub=2&type=4&selfuin={}", d.qq());
     let data: BeiBao = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
-            d.log(TASK, &format!("{e}"));
+            d.log(TASK, &format!("{copy_name} => 查询背包失败：{e}"));
             return None;
         }
     };
 
     if data.result != "0" {
-        d.log(TASK, &data.msg);
+        d.log(TASK, &format!("{copy_name} => 查询背包：{}", data.msg));
         return None;
     }
 
@@ -241,7 +241,10 @@ async fn get_item_num(d: &DaLeDou, name: &str) -> Option<u32> {
     let num: u32 = match bag.num.parse() {
         Ok(v) => v,
         Err(e) => {
-            d.log(TASK, &format!("解析 {name} num 字段失败：{e}"));
+            d.log(
+                TASK,
+                &format!("{copy_name} => 解析 {name} num 字段失败：{e}"),
+            );
             return None;
         }
     };
@@ -574,19 +577,19 @@ struct EventList {
     info: String, // 只有战斗事件才有该字段
 }
 
-async fn 开启副本(d: &DaLeDou, id: &str) -> Option<Begin> {
+async fn 开启副本(d: &DaLeDou, copy_name: &str, id: &str) -> Option<Begin> {
     // 开启副本
     let cmd = format!("cmd=jianghudream&op=beginInstance&copyid={id}");
     let data: Begin = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
-            d.log(TASK, &format!("{e}"));
+            d.log(TASK, &format!("{copy_name} => 开启副本失败：{e}"));
             return None;
         }
     };
 
     if data.result != "0" {
-        d.log(TASK, &data.msg);
+        d.log(TASK, &format!("{copy_name} => 开启副本：{}", data.msg));
         return None;
     }
 
@@ -604,7 +607,7 @@ async fn 进入下一天(d: &DaLeDou, copy_name: &str) -> Option<Begin> {
     };
 
     if data.result != "0" {
-        d.log(TASK, &format!("{copy_name} => 进入下一天：{}", data.msg));
+        d.log(TASK, &format!("{copy_name} => {}", data.msg));
         return None;
     }
 
@@ -617,7 +620,7 @@ async fn 选择事件(d: &DaLeDou, copy_name: &str, event_id: u8) -> Option<Begi
     let data: Begin = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
-            d.log(TASK, &format!("{e}"));
+            d.log(TASK, &format!("{copy_name} => 选择事件失败：{e}"));
             return None;
         }
     };
@@ -647,7 +650,7 @@ async fn 奇遇选项(d: &DaLeDou, copy_name: &str, adventure_id: &str) -> Optio
     let data: Begin = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
-            d.log(TASK, &format!("{e}"));
+            d.log(TASK, &format!("{copy_name} => 奇遇选项失败：{e}"));
             return None;
         }
     };
@@ -663,17 +666,17 @@ async fn 奇遇选项(d: &DaLeDou, copy_name: &str, adventure_id: &str) -> Optio
     Some(data)
 }
 
-async fn 结束回忆(d: &DaLeDou) -> bool {
+async fn 结束回忆(d: &DaLeDou, copy_name: &str) -> bool {
     // 结束回忆
     let data: Response = match d.get("cmd=jianghudream&op=endInstance").await {
         Ok(v) => v,
         Err(e) => {
-            d.log(TASK, &format!("{e}"));
+            d.log(TASK, &format!("{copy_name} => 结束回忆失败：{e}"));
             return false;
         }
     };
 
-    d.log(TASK, &data.msg);
+    d.log(TASK, &format!("{copy_name} => {}", data.msg));
     if data.result != "0" {
         return false;
     }
@@ -681,18 +684,18 @@ async fn 结束回忆(d: &DaLeDou) -> bool {
     true
 }
 
-async fn 领取首通奖励(d: &DaLeDou, id: &str) {
+async fn 领取首通奖励(d: &DaLeDou, copy_name: &str, id: &str) {
     // 领取首通奖励
     let cmd = format!("cmd=jianghudream&op=getFirstReward&copyid={id}");
     let data: Response = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
-            d.log(TASK, &format!("{e}"));
+            d.log(TASK, &format!("{copy_name} => 领取首通奖励失败：{e}"));
             return;
         }
     };
 
-    d.log(TASK, &data.msg);
+    d.log(TASK, &format!("{copy_name} => {}", data.msg));
 }
 
 async fn 兑换商店(d: &DaLeDou) {
