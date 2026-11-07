@@ -64,6 +64,7 @@ mod shi_kong_yi_ji;
 mod ti_guan;
 mod tiao_zhan_ling_jiang;
 mod wa_wa_ji;
+mod wan_sheng_jie;
 mod wen_ding_tian_xia;
 mod wo_de_bang_pai;
 mod wu_lin;
@@ -171,6 +172,7 @@ tasks! {
     开学季 => kai_xue_ji,
     刮刮卡 => gua_gua_ka,
     吉利兑 => ji_li_dui,
+    万圣节 => wan_sheng_jie,
     乐斗驿站 => le_dou_yi_zhan,
     神魔转盘 => shen_mo_zhuan_pan,
     登录有礼 => deng_lu_you_li,
@@ -205,7 +207,7 @@ mod tests {
     // 任务列表数量：锁定登记完整性，防止重构时漏任务
     #[test]
     fn test_task_all_count() {
-        assert_eq!(Task::all().len(), 83);
+        assert_eq!(Task::all().len(), 84);
     }
 
     // 任务列表不允许重复
