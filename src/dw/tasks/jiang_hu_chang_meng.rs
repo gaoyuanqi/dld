@@ -6,6 +6,7 @@
 
 use std::time::Duration;
 
+use anyhow::{Context, Result};
 use chrono::{Datelike, Local, Weekday};
 use serde::Deserialize;
 use tokio::time;
@@ -25,40 +26,67 @@ pub async fn run(d: &DaLeDou) {
         return;
     };
 
-    // 先处理进行中的副本：同时只能有一个副本进行中，
-    // 如果进行中的副本没有收尾，跑空闲副本会报错
-    for item in &data.copy_list {
-        if item.status == "2" {
-            匹配副本(d, item).await;
+    // 有副本需要执行（配置了次数或进行中）才查询背包，各副本共享一次结果
+    let has_run = data
+        .copy_list
+        .iter()
+        .any(|item| d.config().江湖长梦.limit(&item.name) > 0 || item.status == "2");
+    let bag = if has_run { 查询背包(d).await } else { None };
+
+    if has_run {
+        // 先处理进行中的副本：同时只能有一个副本进行中，
+        // 如果进行中的副本没有收尾，跑空闲副本会报错
+        for item in &data.copy_list {
+            if item.status == "2" {
+                匹配副本(d, item, bag.as_ref()).await;
+            }
+        }
+
+        // 再处理空闲副本
+        for item in &data.copy_list {
+            if item.status == "1" {
+                匹配副本(d, item, bag.as_ref()).await;
+            }
         }
     }
 
-    // 再处理空闲副本
-    for item in &data.copy_list {
-        if item.status == "1" {
-            匹配副本(d, item).await;
+    // 周四兑换
+    if Local::now().weekday() == Weekday::Thu {
+        兑换商店(d).await;
+    }
+}
+
+/// 查询背包，供各副本共享一次结果读取香炉数量
+async fn 查询背包(d: &DaLeDou) -> Option<BeiBao> {
+    // 背包
+    let cmd = format!("cmd=view&kind=0&sub=2&type=4&selfuin={}", d.qq());
+    let data: BeiBao = match d.get(&cmd).await {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("查询背包失败：{e}"));
+            return None;
         }
+    };
+
+    if data.result != "0" {
+        d.log(TASK, &format!("查询背包：{}", data.msg));
+        return None;
     }
 
-    // 兑换商店只在周四开放
-    if Local::now().weekday() != Weekday::Thu {
-        return;
-    }
-
-    兑换商店(d).await;
+    Some(data)
 }
 
 /// 按副本名称分发到对应事件逻辑，未知副本直接忽略
-async fn 匹配副本(d: &DaLeDou, item: &CopyList) {
+async fn 匹配副本(d: &DaLeDou, item: &CopyList, bag: Option<&BeiBao>) {
     match item.name.as_str() {
-        "柒承的忙碌日常" => 跑副本(d, item, 副本::柒承).await,
-        "倚天屠龙归我心" => 跑副本(d, item, 副本::倚天).await,
-        "绝世秘籍之争" => 跑副本(d, item, 副本::绝世).await,
-        "桃花自古笑春风" => 跑副本(d, item, 副本::桃花).await,
-        "战乱襄阳" => 跑副本(d, item, 副本::战乱).await,
-        "天涯浪子" => 跑副本(d, item, 副本::天涯).await,
-        "全真古墓意难平" => 跑副本(d, item, 副本::全真).await,
-        "南海有岛名侠客" => 跑副本(d, item, 副本::南海).await,
+        "柒承的忙碌日常" => 跑副本(d, item, 副本::柒承, bag).await,
+        "倚天屠龙归我心" => 跑副本(d, item, 副本::倚天, bag).await,
+        "绝世秘籍之争" => 跑副本(d, item, 副本::绝世, bag).await,
+        "桃花自古笑春风" => 跑副本(d, item, 副本::桃花, bag).await,
+        "战乱襄阳" => 跑副本(d, item, 副本::战乱, bag).await,
+        "天涯浪子" => 跑副本(d, item, 副本::天涯, bag).await,
+        "全真古墓意难平" => 跑副本(d, item, 副本::全真, bag).await,
+        "南海有岛名侠客" => 跑副本(d, item, 副本::南海, bag).await,
         _ => {}
     }
 }
@@ -109,6 +137,17 @@ enum 副本 {
     南海,
 }
 
+/// 从背包查找香炉数量：背包中没有该香炉说明数量为 0
+fn 香炉数量(bag: &BeiBao, name: &str) -> Result<u32> {
+    let Some(item) = bag.bag.iter().find(|i| i.name == name) else {
+        return Ok(0);
+    };
+
+    item.num
+        .parse()
+        .with_context(|| format!("解析 {name} num 字段失败"))
+}
+
 /// 计算副本执行次数：不超过配置上限，进行中的副本至少跑一轮收尾
 fn 计算执行次数(limit: u32, num: u32, status: &str) -> u32 {
     let num = num.min(limit);
@@ -120,11 +159,20 @@ fn 计算执行次数(limit: u32, num: u32, status: &str) -> u32 {
 }
 
 /// 副本主流程：处理香炉、胜负、天数推进，事件选择交给 `kind` 对应的事件处理函数
-async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
+async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本, bag: Option<&BeiBao>) {
     let limit = d.config().江湖长梦.limit(&copy.name);
 
-    let Some(num) = get_item_num(d, &copy.name, &copy.use_desc).await else {
+    // 查询背包失败已在查询处记录日志
+    let Some(bag) = bag else {
         return;
+    };
+
+    let num = match 香炉数量(bag, &copy.use_desc) {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("{} => {e}", copy.name));
+            return;
+        }
     };
 
     // 执行次数不超过配置上限，进行中的副本至少跑一轮收尾
@@ -227,41 +275,6 @@ struct BeiBao {
 struct Bag {
     name: String,
     num: String,
-}
-
-async fn get_item_num(d: &DaLeDou, copy_name: &str, name: &str) -> Option<u32> {
-    // 背包
-    let cmd = format!("cmd=view&kind=0&sub=2&type=4&selfuin={}", d.qq());
-    let data: BeiBao = match d.get(&cmd).await {
-        Ok(v) => v,
-        Err(e) => {
-            d.log(TASK, &format!("{copy_name} => 查询背包失败：{e}"));
-            return None;
-        }
-    };
-
-    if data.result != "0" {
-        d.log(TASK, &format!("{copy_name} => 查询背包：{}", data.msg));
-        return None;
-    }
-
-    // 背包中没有该香炉，说明数量为 0
-    let Some(bag) = data.bag.iter().find(|i| i.name == name) else {
-        return Some(0);
-    };
-
-    let num: u32 = match bag.num.parse() {
-        Ok(v) => v,
-        Err(e) => {
-            d.log(
-                TASK,
-                &format!("{copy_name} => 解析 {name} num 字段失败：{e}"),
-            );
-            return None;
-        }
-    };
-
-    Some(num)
 }
 
 /// 最多550金币
@@ -854,7 +867,9 @@ async fn 兑换(d: &DaLeDou, id: &str, name: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::{Begin, EventList, calc_max_exchange, 战斗, 计算执行次数, 金币数};
+    use super::{
+        Bag, Begin, BeiBao, EventList, calc_max_exchange, 战斗, 计算执行次数, 金币数, 香炉数量,
+    };
 
     /// 构造事件：t 为类型，info 为描述
     fn event(t: &str, info: &str) -> EventList {
@@ -1020,6 +1035,20 @@ mod tests {
         assert!(!data.event_choose.is_empty());
     }
 
+    // eventChoose 显式空数组时解析为空
+    #[test]
+    fn test_begin_parse_event_choose_empty() {
+        let json = r#"{
+            "result":"0","msg":"",
+            "win":"0","choose":"1",
+            "curDays":"1","maxDays":"7",
+            "eventList":[],
+            "eventChoose":[]
+        }"#;
+        let data: Begin = serde_json::from_str(json).unwrap();
+        assert!(data.event_choose.is_empty());
+    }
+
     // 未配置次数且副本进行中：至少跑一轮收尾
     #[test]
     fn test_calc_run_times_unconfigured_ongoing() {
@@ -1064,17 +1093,42 @@ mod tests {
         assert_eq!(计算执行次数(6, 5, "2"), 5);
     }
 
-    // eventChoose 显式空数组时解析为空
+    // 背包中没有该香炉，数量为 0
     #[test]
-    fn test_begin_parse_event_choose_empty() {
-        let json = r#"{
-            "result":"0","msg":"",
-            "win":"0","choose":"1",
-            "curDays":"1","maxDays":"7",
-            "eventList":[],
-            "eventChoose":[]
-        }"#;
-        let data: Begin = serde_json::from_str(json).unwrap();
-        assert!(data.event_choose.is_empty());
+    fn test_item_num_missing() {
+        let bag = BeiBao {
+            result: String::new(),
+            msg: String::new(),
+            bag: vec![],
+        };
+        assert_eq!(香炉数量(&bag, "如意香炉").unwrap(), 0);
+    }
+
+    // 背包中有该香炉，返回数量
+    #[test]
+    fn test_item_num_normal() {
+        let bag = BeiBao {
+            result: String::new(),
+            msg: String::new(),
+            bag: vec![Bag {
+                name: "如意香炉".to_string(),
+                num: "3".to_string(),
+            }],
+        };
+        assert_eq!(香炉数量(&bag, "如意香炉").unwrap(), 3);
+    }
+
+    // 数量非数字，解析失败
+    #[test]
+    fn test_item_num_invalid() {
+        let bag = BeiBao {
+            result: String::new(),
+            msg: String::new(),
+            bag: vec![Bag {
+                name: "如意香炉".to_string(),
+                num: "x".to_string(),
+            }],
+        };
+        assert!(香炉数量(&bag, "如意香炉").is_err());
     }
 }
