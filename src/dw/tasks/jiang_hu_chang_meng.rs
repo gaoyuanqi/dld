@@ -109,23 +109,28 @@ enum 副本 {
     南海,
 }
 
+/// 计算副本执行次数：不超过配置上限，进行中的副本至少跑一轮收尾
+fn 计算执行次数(limit: u32, num: u32, status: &str) -> u32 {
+    let num = num.min(limit);
+    // 无香炉或未配置次数但副本进行中：至少跑一轮将其结束，避免卡住其他副本
+    if num == 0 && status == "2" {
+        return 1;
+    }
+    num
+}
+
 /// 副本主流程：处理香炉、胜负、天数推进，事件选择交给 `kind` 对应的事件处理函数
 async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
     let limit = d.config().江湖长梦.limit(&copy.name);
-    if limit == 0 {
-        return;
-    }
 
-    let Some(mut num) = get_item_num(d, &copy.name, &copy.use_desc).await else {
+    let Some(num) = get_item_num(d, &copy.name, &copy.use_desc).await else {
         return;
     };
 
-    // 执行次数不超过配置上限
-    num = num.min(limit);
-
-    // 无香炉但副本进行中：至少跑一轮将其结束，避免卡住其他副本
-    if num == 0 && copy.status == "2" {
-        num = 1;
+    // 执行次数不超过配置上限，进行中的副本至少跑一轮收尾
+    let num = 计算执行次数(limit, num, &copy.status);
+    if num == 0 {
+        return;
     }
 
     for _ in 0..num {
@@ -207,10 +212,8 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
         }
     }
 
-    // 所有次数执行完毕后再领取首通奖励；未执行（无香炉的空闲副本）不领取
-    if num > 0 {
-        领取首通奖励(d, &copy.name, &copy.id).await;
-    }
+    // 所有次数执行完毕后再领取首通奖励
+    领取首通奖励(d, &copy.name, &copy.id).await;
 }
 
 #[derive(Deserialize)]
@@ -851,7 +854,7 @@ async fn 兑换(d: &DaLeDou, id: &str, name: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::{Begin, EventList, calc_max_exchange, 战斗, 金币数};
+    use super::{Begin, EventList, calc_max_exchange, 战斗, 计算执行次数, 金币数};
 
     /// 构造事件：t 为类型，info 为描述
     fn event(t: &str, info: &str) -> EventList {
@@ -1015,6 +1018,50 @@ mod tests {
         let data: Begin = serde_json::from_str(json).unwrap();
         assert_eq!(data.event_choose.len(), 2);
         assert!(!data.event_choose.is_empty());
+    }
+
+    // 未配置次数且副本进行中：至少跑一轮收尾
+    #[test]
+    fn test_calc_run_times_unconfigured_ongoing() {
+        assert_eq!(计算执行次数(0, 0, "2"), 1);
+        assert_eq!(计算执行次数(0, 3, "2"), 1);
+    }
+
+    // 未配置次数且副本空闲：不执行
+    #[test]
+    fn test_calc_run_times_unconfigured_idle() {
+        assert_eq!(计算执行次数(0, 0, "1"), 0);
+        assert_eq!(计算执行次数(0, 3, "1"), 0);
+    }
+
+    // 无香炉且副本进行中：至少跑一轮收尾
+    #[test]
+    fn test_calc_run_times_no_item_ongoing() {
+        assert_eq!(计算执行次数(0, 0, "2"), 1);
+        assert_eq!(计算执行次数(3, 0, "2"), 1);
+    }
+
+    // 无香炉且副本空闲：不执行
+    #[test]
+    fn test_calc_run_times_no_item_idle() {
+        assert_eq!(计算执行次数(0, 0, "1"), 0);
+        assert_eq!(计算执行次数(3, 0, "1"), 0);
+    }
+
+    // 香炉数超过配置上限时按上限执行
+    #[test]
+    fn test_calc_run_times_capped_by_limit() {
+        assert_eq!(计算执行次数(3, 5, "1"), 3);
+        assert_eq!(计算执行次数(5, 5, "1"), 5);
+        assert_eq!(计算执行次数(3, 5, "2"), 3);
+        assert_eq!(计算执行次数(5, 5, "2"), 5);
+    }
+
+    // 香炉数未超过配置上限时按香炉数执行
+    #[test]
+    fn test_calc_run_times_within_limit() {
+        assert_eq!(计算执行次数(6, 5, "1"), 5);
+        assert_eq!(计算执行次数(6, 5, "2"), 5);
     }
 
     // eventChoose 显式空数组时解析为空
