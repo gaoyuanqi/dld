@@ -424,10 +424,12 @@ async fn 全真事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32)
     }
 
     if cur_days == 2 {
-        // 奇遇（等级1）固定第二个位置
-        选择事件(d, copy_name, 2).await?;
-        // 全真剑法
-        return 奇遇选项(d, copy_name, "3").await;
+        // 这里由于无法区分奇遇等级，只能选择首个奇遇的第二个选项
+        let id = 奇遇(data)?;
+        选择事件(d, copy_name, id).await?;
+        // 奇遇（等级2）-> 无
+        // 奇遇（等级1）-> 点化三清（15金币）
+        return 奇遇选项(d, copy_name, "2").await;
     }
 
     if cur_days == 3 {
