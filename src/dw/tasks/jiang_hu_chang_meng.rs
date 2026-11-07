@@ -136,7 +136,7 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
         loop {
             // 战败
             if data.win == "1" {
-                结束回忆(d, &copy.id).await;
+                结束回忆(d).await;
                 return;
             }
 
@@ -157,7 +157,7 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
             };
 
             if cur_days > max_days {
-                if !结束回忆(d, &copy.id).await {
+                if !结束回忆(d).await {
                     return;
                 }
                 break;
@@ -196,6 +196,11 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
 
             return;
         }
+    }
+
+    // 所有次数执行完毕后再领取首通奖励；未执行（无香炉的空闲副本）不领取
+    if num > 0 {
+        领取首通奖励(d, &copy.id).await;
     }
 }
 
@@ -656,7 +661,7 @@ async fn 奇遇选项(d: &DaLeDou, copy_name: &str, adventure_id: &str) -> Optio
     Some(data)
 }
 
-async fn 结束回忆(d: &DaLeDou, id: &str) -> bool {
+async fn 结束回忆(d: &DaLeDou) -> bool {
     // 结束回忆
     let data: Response = match d.get("cmd=jianghudream&op=endInstance").await {
         Ok(v) => v,
@@ -670,8 +675,6 @@ async fn 结束回忆(d: &DaLeDou, id: &str) -> bool {
     if data.result != "0" {
         return false;
     }
-
-    领取首通奖励(d, id).await;
 
     true
 }
