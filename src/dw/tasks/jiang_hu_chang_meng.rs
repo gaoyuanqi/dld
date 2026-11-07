@@ -163,6 +163,15 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
                 break;
             }
 
+            // 处于奇遇选项页（如上次运行中断在选项前）：直接选择第一个选项
+            if !data.event_choose.is_empty() {
+                let Some(v) = 奇遇选项(d, &copy.name, "1").await else {
+                    return;
+                };
+                data = v;
+                continue;
+            }
+
             if data.choose == "1" || cur_days == 0 {
                 data = match 进入下一天(d, &copy.name).await {
                     Some(v) => v,
@@ -567,6 +576,8 @@ struct Begin {
     event_desc: String, // 奇遇事件描述
     #[serde(default, rename = "eventList")]
     event_list: Vec<EventList>,
+    #[serde(default, rename = "eventChoose")]
+    event_choose: Vec<EventChoose>, // 奇遇选项，非空表示处于奇遇选项页
 }
 
 #[derive(Deserialize)]
@@ -576,6 +587,10 @@ struct EventList {
     #[serde(default)]
     info: String, // 只有战斗事件才有该字段
 }
+
+/// 奇遇选项，字段无消费方，仅用「非空」判断是否处于奇遇选项页
+#[derive(Deserialize)]
+struct EventChoose {}
 
 async fn 开启副本(d: &DaLeDou, copy_name: &str, id: &str) -> Option<Begin> {
     // 开启副本
@@ -857,6 +872,7 @@ mod tests {
             max_days: String::new(),
             event_desc: String::new(),
             event_list: events,
+            event_choose: Vec::new(),
         }
     }
 
@@ -982,5 +998,36 @@ mod tests {
         assert!(data.max_days.is_empty());
         assert!(data.event_desc.is_empty());
         assert!(data.event_list.is_empty());
+        assert!(data.event_choose.is_empty());
+    }
+
+    // beginInstance 响应含 eventChoose 时解析出奇遇选项
+    #[test]
+    fn test_begin_parse_event_choose() {
+        let json = r#"{
+            "result":"0","msg":"",
+            "win":"0","choose":"1",
+            "curDays":"1","maxDays":"7",
+            "eventDesc":"你走着走着看到了韦寡妇站在水井边上犯了难。",
+            "eventList":[{"type":"2"},{"type":"1"},{"type":"1"}],
+            "eventChoose":[{"desc":"义不容辞"},{"desc":"视而不见"}]
+        }"#;
+        let data: Begin = serde_json::from_str(json).unwrap();
+        assert_eq!(data.event_choose.len(), 2);
+        assert!(!data.event_choose.is_empty());
+    }
+
+    // eventChoose 显式空数组时解析为空
+    #[test]
+    fn test_begin_parse_event_choose_empty() {
+        let json = r#"{
+            "result":"0","msg":"",
+            "win":"0","choose":"1",
+            "curDays":"1","maxDays":"7",
+            "eventList":[],
+            "eventChoose":[]
+        }"#;
+        let data: Begin = serde_json::from_str(json).unwrap();
+        assert!(data.event_choose.is_empty());
     }
 }
