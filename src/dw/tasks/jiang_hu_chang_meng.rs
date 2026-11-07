@@ -164,7 +164,7 @@ async fn 跑副本(d: &DaLeDou, copy: &CopyList, kind: 副本) {
             }
 
             if data.choose == "1" || cur_days == 0 {
-                data = match 进入下一天(d).await {
+                data = match 进入下一天(d, &copy.name).await {
                     Some(v) => v,
                     None => return,
                 };
@@ -552,15 +552,17 @@ fn 商店(data: &Begin) -> Option<u8> {
 struct Begin {
     result: String,
     msg: String,
-    win: String,    // 胜负
+    #[serde(default)]
+    win: String, // 胜负
+    #[serde(default)]
     choose: String, // 是否可以进入下一天
-    #[serde(rename = "curDays")]
+    #[serde(default, rename = "curDays")]
     cur_days: String, // 当前天数
-    #[serde(rename = "maxDays")]
+    #[serde(default, rename = "maxDays")]
     max_days: String, // 最大天数
-    #[serde(rename = "eventDesc")]
+    #[serde(default, rename = "eventDesc")]
     event_desc: String, // 奇遇事件描述
-    #[serde(rename = "eventList")]
+    #[serde(default, rename = "eventList")]
     event_list: Vec<EventList>,
 }
 
@@ -591,18 +593,18 @@ async fn 开启副本(d: &DaLeDou, id: &str) -> Option<Begin> {
     Some(data)
 }
 
-async fn 进入下一天(d: &DaLeDou) -> Option<Begin> {
+async fn 进入下一天(d: &DaLeDou, copy_name: &str) -> Option<Begin> {
     // 进入下一天
     let data: Begin = match d.get("cmd=jianghudream&op=goNextDay").await {
         Ok(v) => v,
         Err(e) => {
-            d.log(TASK, &format!("{e}"));
+            d.log(TASK, &format!("{copy_name} => 进入下一天失败：{e}"));
             return None;
         }
     };
 
     if data.result != "0" {
-        d.log(TASK, &data.msg);
+        d.log(TASK, &format!("{copy_name} => 进入下一天：{}", data.msg));
         return None;
     }
 
@@ -962,5 +964,20 @@ mod tests {
     #[test]
     fn test_coins_no_number() {
         assert_eq!(金币数("金币："), None);
+    }
+
+    // goNextDay 异常响应缺 Begin 各字段，反序列化不报错并保留 result/msg
+    #[test]
+    fn test_begin_parse_go_next_day_error_response() {
+        let data: Begin =
+            serde_json::from_str(r#"{"result":"-1","msg":"进入下一天异常"}"#).unwrap();
+        assert_eq!(data.result, "-1");
+        assert_eq!(data.msg, "进入下一天异常");
+        assert!(data.win.is_empty());
+        assert!(data.choose.is_empty());
+        assert!(data.cur_days.is_empty());
+        assert!(data.max_days.is_empty());
+        assert!(data.event_desc.is_empty());
+        assert!(data.event_list.is_empty());
     }
 }
