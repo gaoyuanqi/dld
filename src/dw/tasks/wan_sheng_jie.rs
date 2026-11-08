@@ -154,10 +154,20 @@ async fn 历练(d: &DaLeDou, max_count: u8) {
                 continue;
             }
 
-            乐斗(d, &info.monster_id_).await;
-            count += 1;
-            if count >= max_count {
-                break 'outer;
+            let challenge_times: u8 = match info.challenge_times_.parse() {
+                Ok(v) => v,
+                Err(e) => {
+                    d.log(TASK, &format!("解析 challenge_times_ 字段失败：{e}"));
+                    return;
+                }
+            };
+
+            for _ in 0..challenge_times {
+                乐斗(d, &info.monster_id_).await;
+                count += 1;
+                if count >= max_count {
+                    break 'outer;
+                }
             }
         }
     }
