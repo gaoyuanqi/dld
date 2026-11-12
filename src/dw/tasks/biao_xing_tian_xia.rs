@@ -176,10 +176,6 @@ async fn 拦截(d: &DaLeDou) {
         };
 
         d.log(TASK, &data.msg);
-        if data.result == "-1" {
-            time::sleep(Duration::from_secs(3)).await;
-            continue;
-        }
         if data.result != "0" {
             return;
         }
@@ -208,13 +204,13 @@ async fn 拦截(d: &DaLeDou) {
                     return;
                 }
 
-                time::sleep(Duration::from_millis(200)).await;
                 continue;
             }
 
             d.log(TASK, &res.msg);
-            time::sleep(Duration::from_millis(100)).await;
             if res.result == "-1" {
+                // 系统繁忙
+                // 这个镖车在保护期内
                 continue;
             }
             if res.result != "0" {
@@ -222,7 +218,7 @@ async fn 拦截(d: &DaLeDou) {
             }
         }
 
-        time::sleep(Duration::from_secs(3)).await;
+        time::sleep(Duration::from_secs(4)).await;
     }
 }
 
