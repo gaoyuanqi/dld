@@ -51,8 +51,8 @@ pub async fn run(d: &DaLeDou) {
             let is_target = item.reward.starts_with("太玄经") || item.reward.starts_with("玄铁令");
             if is_target || data.fresh == "0" {
                 acted = true;
-                if 快速委派(d, &item.name, &item.pos).await {
-                    开始任务(d, &item.name, &item.pos).await;
+                if 快速委派(d, &item.name, &item.pos, &item.reward).await {
+                    开始任务(d, &item.name, &item.pos, &item.reward).await;
                 } else {
                     fail.insert(item.pos.clone());
                 }
@@ -60,7 +60,7 @@ pub async fn run(d: &DaLeDou) {
             }
 
             acted = true;
-            刷新(d, &item.name, &item.pos).await;
+            刷新(d, &item.name, &item.pos, &item.reward).await;
             break;
         }
 
@@ -127,7 +127,7 @@ async fn 领取(d: &DaLeDou, pos: &str) {
     d.log(TASK, &data.msg);
 }
 
-async fn 快速委派(d: &DaLeDou, name: &str, pos: &str) -> bool {
+async fn 快速委派(d: &DaLeDou, name: &str, pos: &str, reward: &str) -> bool {
     // 快速委派
     let cmd = format!("cmd=knightisland&op=autoassign&pos={pos}");
     let data: Response = match d.get(&cmd).await {
@@ -138,11 +138,11 @@ async fn 快速委派(d: &DaLeDou, name: &str, pos: &str) -> bool {
         }
     };
 
-    d.log(TASK, &format!("{} => {}", name, data.msg));
+    d.log(TASK, &format!("{} => {}：{}", name, reward, data.msg));
     data.msg == "快速委派成功"
 }
 
-async fn 开始任务(d: &DaLeDou, name: &str, pos: &str) {
+async fn 开始任务(d: &DaLeDou, name: &str, pos: &str, reward: &str) {
     // 开始任务
     let cmd = format!("cmd=knightisland&op=begin&pos={pos}");
     let data: Response = match d.get(&cmd).await {
@@ -153,10 +153,10 @@ async fn 开始任务(d: &DaLeDou, name: &str, pos: &str) {
         }
     };
 
-    d.log(TASK, &format!("{} => {}", name, data.msg));
+    d.log(TASK, &format!("{} => {}：{}", name, reward, data.msg));
 }
 
-async fn 刷新(d: &DaLeDou, name: &str, pos: &str) {
+async fn 刷新(d: &DaLeDou, name: &str, pos: &str, reward: &str) {
     // 刷新
     let cmd = format!("cmd=knightisland&op=refreshmission&pos={pos}");
     let data: Response = match d.get(&cmd).await {
@@ -167,5 +167,5 @@ async fn 刷新(d: &DaLeDou, name: &str, pos: &str) {
         }
     };
 
-    d.log(TASK, &format!("{} => {}", name, data.msg));
+    d.log(TASK, &format!("{} => {}：{}", name, reward, data.msg));
 }
