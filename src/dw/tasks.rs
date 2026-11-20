@@ -1,4 +1,4 @@
-mod bai_pai_ji_tan;
+mod bang_pai_ji_tan;
 mod bang_pai_shang_hui;
 mod bei_bao;
 mod biao_xing_tian_xia;
@@ -144,7 +144,7 @@ tasks! {
     群雄逐鹿 => qun_xiong_zhu_lu,
     画卷迷踪 => hua_juan_mi_zong,
     任务 => ren_wu,
-    帮派祭坛 => bai_pai_ji_tan,
+    帮派祭坛 => bang_pai_ji_tan,
     梦想之旅 => meng_xiang_zhi_lv,
     问鼎天下 => wen_ding_tian_xia,
     帮派商会 => bang_pai_shang_hui,
