@@ -368,4 +368,12 @@ mod tests {
         ];
         assert_eq!(ids, expected);
     }
+
+    #[test]
+    fn test_get_npc_id_成对连续() {
+        for mapid in 1..=20 {
+            let [last, second_last] = get_npc_id(mapid);
+            assert_eq!(last - second_last, 1, "mapid {mapid} 最后两个 NPC 应相邻");
+        }
+    }
 }
