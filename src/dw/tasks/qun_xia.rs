@@ -1,5 +1,6 @@
 //! 报名群侠
 
+use chrono::{Local, Timelike};
 use serde::Deserialize;
 
 use crate::dw::daledou::DaLeDou;
@@ -7,6 +8,14 @@ use crate::dw::daledou::DaLeDou;
 const TASK: &str = "群侠";
 
 pub async fn run(d: &DaLeDou) {
+    let now = Local::now();
+    let hour = now.hour();
+
+    // 不在报名时间（13:00:00-22:59:59）
+    if !(13..=22).contains(&hour) {
+        return;
+    }
+
     #[derive(Deserialize)]
     struct Query {
         result: String,
