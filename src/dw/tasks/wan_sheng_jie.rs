@@ -1,7 +1,7 @@
 //! 万圣节
 //!
 //! 点亮：按照顺序点亮
-//! 历练：如果获得活力则反向乐斗每关最后两个NPC（没有通关所有场景则不会乐斗）
+//! 历练：如果获得活力则反向乐斗每关最后两个NPC
 //! 兑奖：礼包兑换优先级为B、A；周四兑换
 //!
 //! 每天最多获得10个蜡烛
@@ -115,7 +115,8 @@ async fn 历练(d: &DaLeDou, max_count: u8) {
     struct LiLian {
         result: String,
         msg: String,
-        next_npc_id: String,
+        cur_npc_id: String,
+        map_id: String,
     }
 
     // {"result":"0","msg":"OK","cur_npc_id":"6394","next_npc_id":"0","max_npc_id":"6394","play_fight":"1","map_id":"20"}
@@ -132,21 +133,40 @@ async fn 历练(d: &DaLeDou, max_count: u8) {
         return;
     }
 
-    // 还没有通关所有场景
-    if data.next_npc_id != "0" {
-        return;
-    }
+    let cur_npc_id: u32 = match data.cur_npc_id.parse() {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("解析 cur_npc_id 字段失败：{e}"));
+            return;
+        }
+    };
 
-    // 反向乐斗：从高等级到低等级场景，每关最后两个NPC，有挑战次数则乐斗
+    let current_map_id: u32 = match data.map_id.parse() {
+        Ok(v) => v,
+        Err(e) => {
+            d.log(TASK, &format!("解析 map_id 字段失败：{e}"));
+            return;
+        }
+    };
+
     let mut count = 0u8;
-    'outer: for mapid in (1..=20).rev() {
-        let Some(data) = boss_info(d, mapid).await else {
+    'outer: for map_id in (1..=current_map_id).rev() {
+        let Some(data) = boss_info(d, map_id).await else {
             continue;
         };
 
-        for npcid in get_npc_id(mapid) {
-            let npcid = npcid.to_string();
-            let Some(info) = data.monster_infos_.iter().find(|i| i.monster_id_ == npcid) else {
+        for boss_npc_id in get_npc_id(map_id) {
+            // 该关 boss 还没首次通关，不能乐斗，也不打它之后的 NPC
+            if boss_npc_id > cur_npc_id {
+                continue;
+            }
+
+            let boss_npc_id = boss_npc_id.to_string();
+            let Some(info) = data
+                .monster_infos_
+                .iter()
+                .find(|i| i.monster_id_ == boss_npc_id)
+            else {
                 continue;
             };
 
@@ -186,9 +206,9 @@ struct Infos {
     challenge_times_: String, // 剩余挑战次数
 }
 
-async fn boss_info(d: &DaLeDou, mapid: u32) -> Option<MapData> {
+async fn boss_info(d: &DaLeDou, map_id: u32) -> Option<MapData> {
     // 场景
-    let cmd = format!("cmd=mappush&type=2&mapid={mapid}");
+    let cmd = format!("cmd=mappush&type=2&mapid={map_id}");
     let data: MapData = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
@@ -206,16 +226,16 @@ async fn boss_info(d: &DaLeDou, mapid: u32) -> Option<MapData> {
 }
 
 /// 每关最后两个NPC的id，mapid 1~20
-fn get_npc_id(mapid: u32) -> [u32; 2] {
+fn get_npc_id(map_id: u32) -> [u32; 2] {
     // 第1关最后一个NPC的id是6014，每关20个NPC
     const FIRST_MAP_LAST_NPC: u32 = 6014;
     const NPCS_PER_MAP: u32 = 20;
 
-    let last = FIRST_MAP_LAST_NPC + (mapid - 1) * NPCS_PER_MAP;
+    let last = FIRST_MAP_LAST_NPC + (map_id - 1) * NPCS_PER_MAP;
     [last, last - 1]
 }
 
-async fn 乐斗(d: &DaLeDou, npcid: &str) {
+async fn 乐斗(d: &DaLeDou, npc_id: &str) {
     #[derive(Deserialize)]
     struct Fight {
         result: String,
@@ -224,7 +244,7 @@ async fn 乐斗(d: &DaLeDou, npcid: &str) {
     }
 
     // 乐斗
-    let cmd = format!("cmd=mappush&type=1&npcid={npcid}");
+    let cmd = format!("cmd=mappush&type=1&npcid={npc_id}");
     let data: Fight = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
