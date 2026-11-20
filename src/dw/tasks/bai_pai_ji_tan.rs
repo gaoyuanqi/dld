@@ -144,11 +144,8 @@ async fn 掠夺(d: &DaLeDou, id: &str) -> bool {
     };
 
     d.log(TASK, &data.msg);
-    if data.result != "0" {
-        return false;
-    }
 
-    true
+    data.result == "0"
 }
 
 async fn 偷取帮派(d: &DaLeDou) -> bool {
@@ -187,11 +184,8 @@ async fn 偷取(d: &DaLeDou, id: &str) -> bool {
     };
 
     d.log(TASK, &data.msg);
-    if data.result != "0" {
-        return false;
-    }
 
-    true
+    data.result == "0"
 }
 
 #[derive(Deserialize)]

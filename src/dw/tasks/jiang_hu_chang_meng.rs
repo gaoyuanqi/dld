@@ -708,11 +708,8 @@ async fn 结束回忆(d: &DaLeDou, copy_name: &str) -> bool {
     };
 
     d.log(TASK, &format!("{copy_name} => {}", data.msg));
-    if data.result != "0" {
-        return false;
-    }
 
-    true
+    data.result == "0"
 }
 
 async fn 领取首通奖励(d: &DaLeDou, copy_name: &str, id: &str) {
