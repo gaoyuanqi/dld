@@ -73,8 +73,8 @@ pub async fn run(d: &DaLeDou) {
 
     if (4..=25).contains(&day) {
         let hour = now.hour();
-        // 有剩余挑战次数且在挑战时间
-        if data.times != "0" && (8..22).contains(&hour) {
+        // 有剩余挑战次数且在挑战时间（8:00:00-21:59:59）
+        if data.times != "0" && (8..=21).contains(&hour) {
             let Some(battle_data) = data.battle_list.last() else {
                 return;
             };
