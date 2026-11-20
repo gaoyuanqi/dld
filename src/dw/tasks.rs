@@ -35,6 +35,7 @@ mod kuang_dong;
 mod le_dou;
 mod le_dou_cai_dan;
 mod le_dou_huang_li;
+mod le_dou_neng_liang;
 mod le_dou_yi_zhan;
 mod le_dou_you_ji;
 mod li_lian;
@@ -197,6 +198,7 @@ tasks! {
     豪侠出世 => hao_xia_chu_shi,
     秘籍封印 => mi_ji_feng_yin,
     中秋礼盒 => zhong_qiu_li_he,
+    乐斗能量 => le_dou_neng_liang,
     重阳太白诗会 => chong_yang_tai_bai_shi_hui,
 }
 
@@ -207,7 +209,7 @@ mod tests {
     // 任务列表数量：锁定登记完整性，防止重构时漏任务
     #[test]
     fn test_task_all_count() {
-        assert_eq!(Task::all().len(), 84);
+        assert_eq!(Task::all().len(), 85);
     }
 
     // 任务列表不允许重复

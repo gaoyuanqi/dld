@@ -479,6 +479,11 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
+    /// 领取、反向历练
+    乐斗能量 {
+        #[command(flatten)]
+        qq: QqArg,
+    },
     /// 口令提交、领取
     重阳太白诗会 {
         #[command(flatten)]
@@ -582,6 +587,7 @@ pub async fn parse_args() -> Result<()> {
         Command::豪侠出世 { qq } => app.run_task(Task::豪侠出世, qq.qq).await?,
         Command::秘籍封印 { qq } => app.run_task(Task::秘籍封印, qq.qq).await?,
         Command::中秋礼盒 { qq } => app.run_task(Task::中秋礼盒, qq.qq).await?,
+        Command::乐斗能量 { qq } => app.run_task(Task::乐斗能量, qq.qq).await?,
         Command::重阳太白诗会 { qq } => app.run_task(Task::重阳太白诗会, qq.qq).await?,
         Command::帮助 => {
             Cli::command().print_help()?;
