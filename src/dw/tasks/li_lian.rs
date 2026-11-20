@@ -127,9 +127,9 @@ struct Infos {
     challenge_times_: String, // 剩余挑战次数
 }
 
-async fn boss_info(d: &DaLeDou, mapid: &str) -> Option<MapData> {
+async fn boss_info(d: &DaLeDou, map_id: &str) -> Option<MapData> {
     // 场景
-    let cmd = format!("cmd=mappush&type=2&mapid={mapid}");
+    let cmd = format!("cmd=mappush&type=2&mapid={map_id}");
     let data: MapData = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
@@ -146,7 +146,7 @@ async fn boss_info(d: &DaLeDou, mapid: &str) -> Option<MapData> {
     Some(data)
 }
 
-async fn 乐斗(d: &DaLeDou, npcid: &str) {
+async fn 乐斗(d: &DaLeDou, npc_id: &str) {
     #[derive(Deserialize)]
     struct Fight {
         result: String,
@@ -155,7 +155,7 @@ async fn 乐斗(d: &DaLeDou, npcid: &str) {
     }
 
     // 乐斗
-    let cmd = format!("cmd=mappush&type=1&npcid={npcid}");
+    let cmd = format!("cmd=mappush&type=1&npcid={npc_id}");
     let data: Fight = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
