@@ -514,7 +514,7 @@ async fn 南海事件(d: &DaLeDou, data: &Begin, copy_name: &str, cur_days: u32)
     let id = 奇遇(data)?;
     选择事件(d, copy_name, id).await?;
     // 采摘野果
-    return 奇遇选项(d, copy_name, "2").await;
+    return 奇遇选项(d, copy_name, "1").await;
 }
 
 /// 优先金币最多的战斗，无金币数字时回退首个任意战斗
