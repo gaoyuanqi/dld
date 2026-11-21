@@ -10,7 +10,7 @@
 //!
 //! 赛季奖励：休赛期领取
 //!
-//! 遗迹商店：休赛期兑换，优先舆图，然后日月星特惠区、售卖区
+//! 遗迹商店：休赛期兑换，按特惠区、售卖区顺序直接兑换，每件商品尽量买满
 //!
 //! 休赛期第八周指上周四早 6 点到本周四早 6 点
 
@@ -379,24 +379,24 @@ async fn 排名奖励(d: &DaLeDou) {
     d.log(TASK, &data.msg);
 }
 
+#[derive(Deserialize)]
+struct Shop {
+    result: String,
+    msg: String,
+    score: String, // 总积分
+    shopinfo1: Vec<ShopInfo>,
+    shopinfo2: Vec<ShopInfo>,
+}
+
+#[derive(Deserialize)]
+struct ShopInfo {
+    id: String,
+    name: String,
+    score: String,  // 消耗积分
+    remain: String, // 剩余可兑换
+}
+
 async fn 遗迹商店(d: &DaLeDou) {
-    #[derive(Deserialize)]
-    struct Shop {
-        result: String,
-        msg: String,
-        score: String, // 总积分
-        shopinfo1: Vec<Info>,
-        shopinfo2: Vec<Info>,
-    }
-
-    #[derive(Deserialize)]
-    struct Info {
-        id: String,
-        name: String,
-        score: String,  // 消耗积分
-        remain: String, // 剩余可兑换
-    }
-
     // 遗迹商店
     let data: Shop = match d.get("cmd=spacerelic&op=shop").await {
         Ok(v) => v,
@@ -423,17 +423,19 @@ async fn 遗迹商店(d: &DaLeDou) {
         return;
     }
 
-    // 合并两个区的商品，按兑换优先级排序：舆图 → 日引石 → 月引石 → 星引石，同类型特惠区优先
-    let mut items: Vec<&Info> = data.shopinfo1.iter().chain(data.shopinfo2.iter()).collect();
-    let priority = ["4", "8", "1", "2", "3", "5", "6", "7"];
-    items.sort_by_key(|item| {
-        priority
-            .iter()
-            .position(|&p| p == item.id.as_str())
-            .unwrap_or(usize::MAX)
-    });
+    // 兑换特惠区
+    兑换区(d, &mut score, &data.shopinfo1).await;
+    if score < 200 {
+        return;
+    }
 
-    for item in &items {
+    // 兑换售卖区
+    兑换区(d, &mut score, &data.shopinfo2).await;
+}
+
+/// 按顺序尽量兑换一区商品，积分低于 200 保底时停止本区
+async fn 兑换区(d: &DaLeDou, score: &mut u32, items: &[ShopInfo]) {
+    for item in items {
         if item.remain == "0" {
             continue;
         }
@@ -451,7 +453,7 @@ async fn 遗迹商店(d: &DaLeDou) {
             continue;
         }
 
-        if score < cost {
+        if *score < cost {
             continue;
         }
 
@@ -463,9 +465,9 @@ async fn 遗迹商店(d: &DaLeDou) {
             }
         };
 
-        let max = remain.min(score / cost);
+        let max = remain.min(*score / cost);
         let (tens, ones) = (max / 10, max % 10);
-        score -= cost * max;
+        *score -= cost * max;
 
         for _ in 0..tens {
             兑换(d, &item.name, &item.id, 10).await;
@@ -474,8 +476,8 @@ async fn 遗迹商店(d: &DaLeDou) {
             兑换(d, &item.name, &item.id, 1).await;
         }
 
-        if score < 200 {
-            return;
+        if *score < 200 {
+            break;
         }
     }
 }
