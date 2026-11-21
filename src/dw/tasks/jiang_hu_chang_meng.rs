@@ -7,7 +7,8 @@
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use chrono::{Datelike, Local, Weekday};
+use jiff::ZonedDateTime;
+use jiff::civil::Weekday;
 use serde::Deserialize;
 use tokio::time;
 
@@ -51,7 +52,7 @@ pub async fn run(d: &DaLeDou) {
     }
 
     // 周四兑换
-    if Local::now().weekday() == Weekday::Thu {
+    if ZonedDateTime::now().weekday() == Weekday::Thursday {
         兑换商店(d).await;
     }
 }

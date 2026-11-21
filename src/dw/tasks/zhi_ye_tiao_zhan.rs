@@ -6,7 +6,7 @@
 
 use std::time::Duration;
 
-use chrono::{Local, Timelike};
+use jiff::ZonedDateTime;
 use serde::Deserialize;
 use tokio::time;
 
@@ -44,7 +44,7 @@ pub async fn run(d: &DaLeDou) {
     }
 
     // 挑战时间为每天12点~24点
-    let now = Local::now();
+    let now = ZonedDateTime::now();
     let hour = now.hour();
     if !(12..24).contains(&hour) {
         return;

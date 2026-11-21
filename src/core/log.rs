@@ -12,7 +12,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
-use chrono::{NaiveDate, NaiveDateTime};
+use jiff::civil::{Date, DateTime};
+use jiff::{Span, ZonedDateTime};
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -23,7 +24,7 @@ pub(crate) const LOG_CHANNEL_CAPACITY: usize = 1024;
 #[derive(Debug)]
 pub(crate) struct LogMessage {
     pub(crate) qq: String,
-    pub(crate) now: NaiveDateTime,
+    pub(crate) now: DateTime,
     pub(crate) task_name: String,
     pub(crate) result: String,
 }
@@ -61,7 +62,7 @@ impl Logger {
     }
 
     /// 记录日志：发送消息到日志通道（已满时丢弃并提示、关闭时静默，不影响任务执行）
-    pub fn log(&self, now: NaiveDateTime, task_name: &str, result: &str) {
+    pub fn log(&self, now: DateTime, task_name: &str, result: &str) {
         let msg = LogMessage {
             qq: self.qq.clone(),
             now,
@@ -102,7 +103,7 @@ impl LogWriter {
                 println!(
                     "{}",
                     format_console_line(
-                        &msg.now.format("%Y-%m-%d %H:%M:%S").to_string(),
+                        &msg.now.strftime("%Y-%m-%d %H:%M:%S").to_string(),
                         &msg.qq,
                         &msg.task_name,
                         &msg.result,
@@ -116,7 +117,7 @@ impl LogWriter {
     /// 写入日志行到文件（每次打开→追加→关闭）
     fn write(&self, msg: &LogMessage) {
         let line = format_file_line(
-            &msg.now.format("%H:%M:%S").to_string(),
+            &msg.now.strftime("%H:%M:%S").to_string(),
             &msg.task_name,
             &msg.result,
         );
@@ -144,10 +145,10 @@ fn format_console_line(time: &str, qq: &str, task_name: &str, result: &str) -> S
 }
 
 /// 根据日期生成日志文件路径：`<logs_dir>/<qq>/YYYY-MM-DD.log`
-fn log_file_path(logs_dir: &Path, qq: &str, date: NaiveDate) -> PathBuf {
+fn log_file_path(logs_dir: &Path, qq: &str, date: Date) -> PathBuf {
     logs_dir
         .join(qq)
-        .join(format!("{}.log", date.format("%Y-%m-%d")))
+        .join(format!("{}.log", date.strftime("%Y-%m-%d")))
 }
 
 /// 删除指定 QQ 的全部日志，目录不存在则无操作
@@ -164,8 +165,8 @@ pub fn cleanup_old_logs(logs_dir: &Path, retention_days: u8) {
 }
 
 fn do_cleanup(logs_dir: &Path, retention_days: u8) {
-    let today = chrono::Local::now().date_naive();
-    let cutoff = today - chrono::TimeDelta::days((retention_days - 1) as i64);
+    let today = ZonedDateTime::now().date();
+    let cutoff = today.saturating_sub(Span::new().days((retention_days - 1) as i64));
 
     let entries = match fs::read_dir(logs_dir) {
         Ok(e) => e,
@@ -190,7 +191,7 @@ fn do_cleanup(logs_dir: &Path, retention_days: u8) {
             };
 
             // 解析文件名中的日期：YYYY-MM-DD
-            let Ok(date) = NaiveDate::parse_from_str(name, "%Y-%m-%d") else {
+            let Ok(date) = name.parse::<Date>() else {
                 continue;
             };
 
@@ -207,8 +208,6 @@ fn do_cleanup(logs_dir: &Path, retention_days: u8) {
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
-
-    use chrono::{Local, NaiveDate};
 
     use super::*;
 
@@ -230,7 +229,7 @@ mod tests {
     #[test]
     fn test_log_file_path() {
         let dir = Path::new("/tmp/dld");
-        let date = NaiveDate::from_ymd_opt(2026, 6, 15).unwrap();
+        let date = Date::new(2026, 6, 15).unwrap();
         let path = log_file_path(dir, "123456", date);
         assert_eq!(path, PathBuf::from("/tmp/dld/123456/2026-06-15.log"));
     }
@@ -243,7 +242,7 @@ mod tests {
         let writer = LogWriter::new(rx, dir.path(), false);
 
         let logger = Logger::new(dir.path(), "123456", tx.clone()).unwrap();
-        let now = Local::now().naive_local();
+        let now = ZonedDateTime::now().datetime();
         logger.log(now, "开始乐斗", "完成");
         logger.log(now, "帮派任务", "领取成功");
 
@@ -267,7 +266,7 @@ mod tests {
         let writer = LogWriter::new(rx, dir.path(), false);
 
         let logger = Logger::new(dir.path(), "123456", tx.clone()).unwrap();
-        let now = Local::now().naive_local();
+        let now = ZonedDateTime::now().datetime();
         logger.log(now, "一", "1");
         logger.log(now, "二", "2");
         logger.log(now, "三", "3"); // 通道已满，被丢弃
@@ -289,7 +288,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (tx, mut rx) = tokio::sync::mpsc::channel(2);
         let logger = Logger::new(dir.path(), "123456", tx).unwrap();
-        let now = Local::now().naive_local();
+        let now = ZonedDateTime::now().datetime();
 
         logger.log(now, "一", "1");
         logger.log(now, "二", "2");
@@ -315,7 +314,7 @@ mod tests {
 
         let logger_a = Logger::new(dir.path(), "111", tx.clone()).unwrap();
         let logger_b = Logger::new(dir.path(), "222", tx.clone()).unwrap();
-        let now = Local::now().naive_local();
+        let now = ZonedDateTime::now().datetime();
         logger_a.log(now, "开始乐斗", "完成");
         logger_b.log(now, "帮派任务", "领取成功");
 
@@ -346,19 +345,19 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let logs_dir = dir.path();
 
-        let today = chrono::Local::now().date_naive();
-        let old_date = today - chrono::TimeDelta::days(10);
-        let recent_date = today - chrono::TimeDelta::days(2);
+        let today = ZonedDateTime::now().date();
+        let old_date = today.saturating_sub(Span::new().days(10));
+        let recent_date = today.saturating_sub(Span::new().days(2));
 
         let qq_dir = logs_dir.join("123456");
         fs::create_dir_all(&qq_dir).unwrap();
 
         // 旧日志 — 应被删除
-        let old_name = format!("{}.log", old_date.format("%Y-%m-%d"));
+        let old_name = format!("{}.log", old_date.strftime("%Y-%m-%d"));
         fs::write(qq_dir.join(&old_name), b"old").unwrap();
 
         // 近期日志 — 应保留（含边界：2 天前 = 今日 + 前 2 天 = 共 3 天）
-        let recent_name = format!("{}.log", recent_date.format("%Y-%m-%d"));
+        let recent_name = format!("{}.log", recent_date.strftime("%Y-%m-%d"));
         fs::write(qq_dir.join(&recent_name), b"recent").unwrap();
 
         do_cleanup(logs_dir, 3);
@@ -373,13 +372,13 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let logs_dir = dir.path();
 
-        let today = chrono::Local::now().date_naive();
-        let yesterday = today - chrono::TimeDelta::days(1);
+        let today = ZonedDateTime::now().date();
+        let yesterday = today.saturating_sub(Span::new().days(1));
 
         let qq_dir = logs_dir.join("123456");
         fs::create_dir_all(&qq_dir).unwrap();
 
-        let name = format!("{}.log", yesterday.format("%Y-%m-%d"));
+        let name = format!("{}.log", yesterday.strftime("%Y-%m-%d"));
         fs::write(qq_dir.join(&name), b"yesterday").unwrap();
 
         do_cleanup(logs_dir, 1);

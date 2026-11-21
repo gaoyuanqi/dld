@@ -4,7 +4,7 @@
 //!
 //! 执行时间：每天 6:00–23:59
 
-use chrono::{Local, Timelike};
+use jiff::ZonedDateTime;
 use serde::Deserialize;
 
 use crate::dw::daledou::DaLeDou;
@@ -12,7 +12,7 @@ use crate::dw::daledou::DaLeDou;
 const TASK: &str = "抢地盘";
 
 pub async fn run(d: &DaLeDou) {
-    let hour = Local::now().hour();
+    let hour = ZonedDateTime::now().hour();
     if (0..5).contains(&hour) {
         return;
     }

@@ -7,7 +7,8 @@
 //! 每天最多获得10个蜡烛
 //! 活动结束蜡烛和南瓜灯数量清零
 
-use chrono::{Datelike, Local};
+use jiff::ZonedDateTime;
+use jiff::civil::Weekday;
 use serde::Deserialize;
 
 use crate::dw::daledou::DaLeDou;
@@ -299,7 +300,7 @@ async fn 乐斗记录(d: &DaLeDou, repid: &str) {
 
 async fn 兑换奖励(d: &DaLeDou) {
     // 只在星期四兑换
-    if Local::now().weekday() != chrono::Weekday::Thu {
+    if ZonedDateTime::now().weekday() != Weekday::Thursday {
         return;
     }
 

@@ -14,7 +14,7 @@
 
 use std::time::Duration;
 
-use chrono::{Datelike, Local, Timelike};
+use jiff::ZonedDateTime;
 use serde::Deserialize;
 use tokio::time;
 
@@ -58,7 +58,7 @@ pub async fn run(d: &DaLeDou) {
         return;
     }
 
-    let now = Local::now();
+    let now = ZonedDateTime::now();
     let day = now.day();
 
     // 未报名

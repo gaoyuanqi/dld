@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 
-use chrono::Utc;
+use jiff::Timestamp;
 use serde::Deserialize;
 use tokio::time;
 
@@ -182,7 +182,7 @@ async fn is_finish_time(d: &DaLeDou) -> bool {
     };
 
     let off_season = ts - 604_800;
-    Utc::now().timestamp() >= off_season
+    Timestamp::now().as_second() >= off_season
 }
 
 async fn 异兽洞窟(d: &DaLeDou) {

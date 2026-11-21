@@ -4,7 +4,8 @@
 //!
 //! 周日领取奖励、报名帮战、激活祝福
 
-use chrono::{Datelike, Local};
+use jiff::ZonedDateTime;
+use jiff::civil::Weekday;
 
 use serde::Deserialize;
 
@@ -46,7 +47,7 @@ pub async fn run(d: &DaLeDou) {
     }
 
     // 星期天
-    if Local::now().weekday() == chrono::Weekday::Sun {
+    if ZonedDateTime::now().weekday() == Weekday::Sunday {
         帮战(d).await;
     }
 

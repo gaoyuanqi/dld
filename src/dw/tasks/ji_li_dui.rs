@@ -6,7 +6,8 @@
 
 use std::time::Duration;
 
-use chrono::{Datelike, Local, NaiveDate};
+use jiff::civil::Date;
+use jiff::{Span, ZonedDateTime};
 use serde::Deserialize;
 use tokio::time;
 
@@ -26,7 +27,7 @@ pub async fn run(d: &DaLeDou) {
     }
 
     // 仅活动结束前一天兑换
-    let now = Local::now();
+    let now = ZonedDateTime::now();
     match 是否结束前一天(&data.acttime, now.year(), now.month(), now.day()) {
         Some(true) => {}
         Some(false) => return,
@@ -129,19 +130,19 @@ async fn 领取(d: &DaLeDou, id: &str) {
 /// 解析活动结束日期（月、日）
 ///
 /// acttime 格式：「9月24日更新后至10月23日6点」，取「至」之后的结束月日
-fn 解析结束日期(acttime: &str) -> Option<(u32, u32)> {
+fn 解析结束日期(acttime: &str) -> Option<(i8, i8)> {
     let end = acttime.split_once('至')?.1;
     let (month, rest) = end.split_once('月')?;
-    let month: u32 = month.parse().ok()?;
+    let month: i8 = month.parse().ok()?;
     let (day, _) = rest.split_once('日')?;
-    let day: u32 = day.parse().ok()?;
+    let day: i8 = day.parse().ok()?;
     Some((month, day))
 }
 
 /// 判断今天是否为活动结束前一天
 ///
 /// 返回 None 表示 acttime 解析失败
-fn 是否结束前一天(acttime: &str, year: i32, month: u32, day: u32) -> Option<bool> {
+fn 是否结束前一天(acttime: &str, year: i16, month: i8, day: i8) -> Option<bool> {
     let (end_month, end_day) = 解析结束日期(acttime)?;
     // 结束月日早于今天，说明活动跨年，结束在明年
     let end_year = if (end_month, end_day) < (month, day) {
@@ -149,8 +150,8 @@ fn 是否结束前一天(acttime: &str, year: i32, month: u32, day: u32) -> Opti
     } else {
         year
     };
-    let end = NaiveDate::from_ymd_opt(end_year, end_month, end_day)?;
-    let prev = end.pred_opt()?;
+    let end = Date::new(end_year, end_month, end_day).ok()?;
+    let prev = end.checked_sub(Span::new().days(1)).ok()?;
     Some(prev.month() == month && prev.day() == day)
 }
 

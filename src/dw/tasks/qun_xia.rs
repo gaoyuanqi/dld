@@ -1,6 +1,6 @@
 //! 报名群侠
 
-use chrono::{Local, Timelike};
+use jiff::ZonedDateTime;
 use serde::Deserialize;
 
 use crate::dw::daledou::DaLeDou;
@@ -8,7 +8,7 @@ use crate::dw::daledou::DaLeDou;
 const TASK: &str = "群侠";
 
 pub async fn run(d: &DaLeDou) {
-    let now = Local::now();
+    let now = ZonedDateTime::now();
     let hour = now.hour();
 
     // 不在报名时间（13:00:00-22:59:59）

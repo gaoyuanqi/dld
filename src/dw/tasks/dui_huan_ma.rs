@@ -2,7 +2,8 @@
 //!
 //! 周四微信兑换
 
-use chrono::{Datelike, Local, Weekday};
+use jiff::ZonedDateTime;
+use jiff::civil::Weekday;
 use serde::Deserialize;
 
 use crate::dw::daledou::DaLeDou;
@@ -10,7 +11,7 @@ use crate::dw::daledou::DaLeDou;
 const TASK: &str = "兑换码";
 
 pub async fn run(d: &DaLeDou) {
-    if Local::now().weekday() != Weekday::Thu {
+    if ZonedDateTime::now().weekday() != Weekday::Thursday {
         return;
     }
 

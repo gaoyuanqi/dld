@@ -5,7 +5,8 @@
 //! 消耗梦幻机票条件：
 //! 拥有梦幻机票数量 >= 最多消耗梦幻机票数量 >= 未去过
 
-use chrono::{Datelike, Local};
+use jiff::ZonedDateTime;
+use jiff::civil::Weekday;
 use serde::Deserialize;
 
 use crate::dw::daledou::DaLeDou;
@@ -50,7 +51,7 @@ pub async fn run(d: &DaLeDou) {
     }
 
     // 不是星期四
-    if Local::now().weekday() != chrono::Weekday::Thu {
+    if ZonedDateTime::now().weekday() != Weekday::Thursday {
         return;
     }
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, bail};
-use chrono::Local;
+use jiff::ZonedDateTime;
 use serde::de::DeserializeOwned;
 
 use crate::core::client::DaLeDouClient;
@@ -64,7 +64,8 @@ impl DaLeDou {
 
     /// 记录任务日志
     pub fn log(&self, task_name: &str, msg: &str) {
-        self.logger.log(Local::now().naive_local(), task_name, msg);
+        self.logger
+            .log(ZonedDateTime::now().datetime(), task_name, msg);
     }
 
     /// Cookie 是否已失效

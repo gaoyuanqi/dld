@@ -4,7 +4,8 @@
 
 use std::time::Duration;
 
-use chrono::{Datelike, Local};
+use jiff::ZonedDateTime;
+use jiff::civil::Weekday;
 use serde::Deserialize;
 use tokio::time;
 
@@ -68,7 +69,7 @@ pub async fn run(d: &DaLeDou) {
     };
 
     // 不是星期六
-    if Local::now().weekday() != chrono::Weekday::Sat {
+    if ZonedDateTime::now().weekday() != Weekday::Saturday {
         return;
     }
 
