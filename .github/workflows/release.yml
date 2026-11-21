@@ -23,6 +23,22 @@ jobs:
             exit 1
           fi
 
+  audit:
+    # 发版前依赖审计：有漏洞则阻断发版，unmaintained/unsound 告警不阻断但结果可见
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: 依赖安全审计（RustSec 漏洞库）
+        uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   build:
     needs: verify
     strategy:
@@ -74,7 +90,7 @@ jobs:
           path: target/${{ matrix.target }}/release/${{ matrix.bin }}
 
   release:
-    needs: build
+    needs: [build, audit]
     runs-on: ubuntu-latest
     permissions:
       contents: write
