@@ -116,6 +116,7 @@ type: 中文描述
 # 发布流程
 
 - 用户说「发版」时，先提议版本号（默认补丁位 +1，如 0.1.0 → 0.1.1），用户确认后执行
+- 本地运行 `cargo audit`：有漏洞先修复再发版，unmaintained/unsound 告警不阻断（release.yml 的审计 job 会兜底校验）
 - 改 `Cargo.toml` 版本号，`cargo check` 同步 `Cargo.lock`
 - 执行 `cargo fmt && cargo clippy -- -D warnings && cargo test`
 - 提交 `chore: 版本号 x.y.z`，打 tag `vx.y.z` 并推送 main 与 tag
