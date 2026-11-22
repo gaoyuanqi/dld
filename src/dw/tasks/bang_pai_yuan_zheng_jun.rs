@@ -16,7 +16,6 @@ const TASK: &str = "帮派远征军";
 
 #[derive(Deserialize)]
 struct Response {
-    result: String,
     msg: String,
 }
 
@@ -26,7 +25,7 @@ pub async fn run(d: &DaLeDou) {
             return;
         };
 
-        // 已推进到最后一个节点
+        // 已推进到最后一个节点：领奖后结束
         if data.fight_info.process == data.fight_info.total_point_num {
             // 岛屿奖励可领或者已领取表示已通关所有节点
             if data.fight_info.island_award_status == "1"
@@ -37,23 +36,53 @@ pub async fn run(d: &DaLeDou) {
             }
         }
 
-        // 你已战败并且没有免费复活
-        if data.fight_info.revive == "1" && !领取奖励(d).await {
-            return;
-        }
+        // 战败：领奖（可能免费复活）后若仍未复活，结束任务
+        if data.fight_info.revive == "1" {
+            // 如果成功领取上一个节点奖励则会免费复活
+            领取奖励(d).await;
 
-        for info in &data.fight_info.island_info {
-            // 节点未激活
-            if info.point_status == "0" {
+            let Some(data) = query(d, "-1").await else {
+                return;
+            };
+            if data.fight_info.revive == "1" {
                 return;
             }
+        }
 
-            // 节点已通关
-            if info.point_status == "2" {
+        // 找进行中的节点，没有则结束任务
+        let Some(info) = data
+            .fight_info
+            .island_info
+            .iter()
+            .find(|info| info.point_status == "1")
+        else {
+            return;
+        };
+
+        // 拉取驻守玩家并按战力从低到高排序
+        let Some(players) = 拉取驻守玩家(d, &info.point_id).await else {
+            return;
+        };
+        let defenders = 排序驻守玩家(players);
+
+        // 逐个攻击
+        for defender in defenders {
+            let Some(msg) = 攻击(d, &info.point_id, &defender.opp_uin).await else {
+                return;
+            };
+
+            // {"result":"-1","msg":"该敌人似乎逃跑啦~ 更换一名敌人进行战斗吧！","replays":""}
+            if msg.starts_with("勇士，恭喜您战胜") || msg.starts_with("该敌人似乎逃跑啦")
+            {
                 continue;
             }
 
-            fight_node(d, info).await;
+            // {"result":"-1","msg":"加入帮派第一周不能参与帮派远征军","replays":""}
+            if msg.starts_with("加入帮派第一周") {
+                return;
+            }
+
+            // 勇士，您未能战胜敌军
             break;
         }
     }
@@ -107,106 +136,92 @@ async fn query(d: &DaLeDou, island_id: &str) -> Option<Query> {
     Some(data)
 }
 
-async fn 领取奖励(d: &DaLeDou) -> bool {
-    'outer: for island_id in 0..5 {
+/// 领取所有可领的岛屿奖励和节点奖励
+async fn 领取奖励(d: &DaLeDou) {
+    for island_id in 0..5 {
         let Some(data) = query(d, &format!("{island_id}")).await else {
-            return false;
+            return;
         };
 
-        if data.fight_info.island_award_status == "1" && !岛屿奖励(d, &format!("{island_id}")).await
-        {
-            return false;
+        // 可领取
+        if data.fight_info.island_award_status == "1" {
+            领取岛屿奖励(d, &format!("{island_id}")).await;
         }
 
         for item in &data.fight_info.island_info {
             // 还没有推进到该节点或者正在进行
             if item.point_status != "2" {
-                break 'outer;
+                return;
             }
 
-            // 可领取奖励
-            if item.award_status == "1" && !节点奖励(d, &item.point_id).await {
-                return false;
+            // 可领取
+            if item.award_status == "1" {
+                领取节点奖励(d, &item.point_id).await;
             }
         }
     }
-
-    let Some(data) = query(d, "-1").await else {
-        return false;
-    };
-
-    // 你复活了
-    data.fight_info.revive == "0"
 }
 
-async fn 岛屿奖励(d: &DaLeDou, island_id: &str) -> bool {
+async fn 领取岛屿奖励(d: &DaLeDou, island_id: &str) {
     // 岛屿奖励
     let cmd = format!("cmd=factionarmy&op=getIslandAward&island_id={island_id}");
     let data: Response = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("{e}"));
-            return false;
+            return;
         }
     };
 
     d.log(TASK, &data.msg);
-    data.result == "0"
 }
 
-async fn 节点奖励(d: &DaLeDou, point_id: &str) -> bool {
+async fn 领取节点奖励(d: &DaLeDou, point_id: &str) {
     // 节点奖励
     let cmd = format!("cmd=factionarmy&op=getPointAward&point_id={point_id}");
     let data: Response = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("{e}"));
-            return false;
+            return;
         }
     };
 
     d.log(TASK, &data.msg);
-    data.result == "0"
 }
 
-async fn fight_node(d: &DaLeDou, info: &IslandInfo) {
-    let Some(data) = 参战(d, &info.point_id, "1").await else {
-        return;
-    };
+/// 拉取节点全部页的驻守玩家
+async fn 拉取驻守玩家(d: &DaLeDou, point_id: &str) -> Option<Vec<SettleUsrInfo>> {
+    let data = 参战(d, point_id, "1").await?;
 
     let total_pages: u8 = match data.total_pages.parse() {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("解析 total_pages 字段失败：{e}"));
-            return;
+            return None;
         }
     };
 
     // 收集所有驻守玩家（第一页已包含）
     let mut all_defenders = data.settle_usr_info;
     for page in 2..=total_pages {
-        let Some(data) = 参战(d, &info.point_id, &page.to_string()).await else {
-            return;
-        };
+        let data = 参战(d, point_id, &page.to_string()).await?;
         all_defenders.extend(data.settle_usr_info);
     }
 
-    // 过滤已战败，并按战力（浮点数）从低到高排序
-    let mut defenders: Vec<SettleUsrInfo> = all_defenders
-        .into_iter()
-        .filter(|p| p.is_dead == "0")
-        .collect();
+    Some(all_defenders)
+}
+
+/// 过滤已阵亡的驻守玩家，并按战力从低到高排序
+fn 排序驻守玩家(players: Vec<SettleUsrInfo>) -> Vec<SettleUsrInfo> {
+    let mut defenders: Vec<SettleUsrInfo> =
+        players.into_iter().filter(|p| p.is_dead == "0").collect();
     defenders.sort_by(|a, b| {
         let a_val = a.fight_capacity.parse::<f64>().unwrap_or(f64::INFINITY);
         let b_val = b.fight_capacity.parse::<f64>().unwrap_or(f64::INFINITY);
         a_val.partial_cmp(&b_val).unwrap_or(Ordering::Equal)
     });
-
-    for defender in defenders {
-        if !攻击(d, &info.point_id, &defender.opp_uin).await {
-            return;
-        }
-    }
+    defenders
 }
 
 #[derive(Deserialize)]
@@ -248,23 +263,70 @@ async fn 参战(d: &DaLeDou, point_id: &str, page: &str) -> Option<Point> {
     Some(data)
 }
 
-async fn 攻击(d: &DaLeDou, point_id: &str, opp_uin: &str) -> bool {
+/// 攻击，返回接口 msg，请求失败返回 None
+async fn 攻击(d: &DaLeDou, point_id: &str, opp_uin: &str) -> Option<String> {
     // 攻击
     let cmd = format!("cmd=factionarmy&op=fightWithUsr&point_id={point_id}&opp_uin={opp_uin}");
     let data: Response = match d.get(&cmd).await {
         Ok(v) => v,
         Err(e) => {
             d.log(TASK, &format!("{e}"));
-            return false;
+            return None;
         }
     };
 
     d.log(TASK, &data.msg);
-    if data.result != "0" {
-        // {"result":"-1","msg":"您的血量不足，请重生后在进行战斗","replays":""}
-        // {"result":"-1","msg":"该敌人似乎逃跑啦~ 更换一名敌人进行战斗吧！","replays":""}
-        return data.msg.starts_with("该敌人似乎逃跑啦");
+    Some(data.msg)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // 构造驻守玩家
+    fn 玩家(opp_uin: &str, is_dead: &str, fight_capacity: &str) -> SettleUsrInfo {
+        SettleUsrInfo {
+            opp_uin: opp_uin.into(),
+            is_dead: is_dead.into(),
+            fight_capacity: fight_capacity.into(),
+        }
     }
 
-    data.msg.starts_with("勇士，恭喜您战胜")
+    // 提取排序后的 QQ 列表
+    fn qqs(players: &[SettleUsrInfo]) -> Vec<&str> {
+        players.iter().map(|p| p.opp_uin.as_str()).collect()
+    }
+
+    // 过滤已阵亡的驻守玩家
+    #[test]
+    fn test_排序驻守玩家_过滤阵亡() {
+        let players = vec![
+            玩家("1", "1", "100"),
+            玩家("2", "0", "200"),
+            玩家("3", "0", "300"),
+        ];
+        assert_eq!(qqs(&排序驻守玩家(players)), ["2", "3"]);
+    }
+
+    // 按战力从低到高排序
+    #[test]
+    fn test_排序驻守玩家_战力升序() {
+        let players = vec![
+            玩家("1", "0", "300"),
+            玩家("2", "0", "100"),
+            玩家("3", "0", "200"),
+        ];
+        assert_eq!(qqs(&排序驻守玩家(players)), ["2", "3", "1"]);
+    }
+
+    // 战力解析失败排最后
+    #[test]
+    fn test_排序驻守玩家_战力解析失败排最后() {
+        let players = vec![
+            玩家("1", "0", "无效"),
+            玩家("2", "0", "100"),
+            玩家("3", "0", "50"),
+        ];
+        assert_eq!(qqs(&排序驻守玩家(players)), ["3", "2", "1"]);
+    }
 }
