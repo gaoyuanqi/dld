@@ -67,22 +67,33 @@ pub async fn run(d: &DaLeDou) {
 
         // 逐个攻击
         for defender in defenders {
-            let Some(msg) = 攻击(d, &info.point_id, &defender.opp_uin).await else {
-                return;
+            // 攻击
+            let cmd = format!(
+                "cmd=factionarmy&op=fightWithUsr&point_id={}&opp_uin={}",
+                info.point_id, defender.opp_uin
+            );
+            let data: Response = match d.get(&cmd).await {
+                Ok(v) => v,
+                Err(e) => {
+                    d.log(TASK, &format!("{e}"));
+                    return;
+                }
             };
 
+            d.log(TASK, &data.msg);
+
             // {"result":"-1","msg":"该敌人似乎逃跑啦~ 更换一名敌人进行战斗吧！","replays":""}
-            if msg.starts_with("勇士，恭喜您战胜") || msg.starts_with("该敌人似乎逃跑啦")
+            if data.msg.starts_with("勇士，恭喜您战胜") || data.msg.starts_with("该敌人似乎逃跑啦")
             {
                 continue;
             }
 
             // {"result":"-1","msg":"加入帮派第一周不能参与帮派远征军","replays":""}
-            if msg.starts_with("加入帮派第一周") {
+            if data.msg.starts_with("加入帮派第一周") {
                 return;
             }
 
-            // 勇士，您未能战胜敌军
+            // {"result":"0","msg":"勇士，您未能战胜敌军","replays":""}
             break;
         }
     }
@@ -139,13 +150,14 @@ async fn query(d: &DaLeDou, island_id: &str) -> Option<Query> {
 /// 领取所有可领的岛屿奖励和节点奖励
 async fn 领取奖励(d: &DaLeDou) {
     for island_id in 0..5 {
-        let Some(data) = query(d, &format!("{island_id}")).await else {
+        let island_id = island_id.to_string();
+        let Some(data) = query(d, &island_id).await else {
             return;
         };
 
         // 可领取
         if data.fight_info.island_award_status == "1" {
-            领取岛屿奖励(d, &format!("{island_id}")).await;
+            领取岛屿奖励(d, &island_id).await;
         }
 
         for item in &data.fight_info.island_info {
@@ -261,22 +273,6 @@ async fn 参战(d: &DaLeDou, point_id: &str, page: &str) -> Option<Point> {
     }
 
     Some(data)
-}
-
-/// 攻击，返回接口 msg，请求失败返回 None
-async fn 攻击(d: &DaLeDou, point_id: &str, opp_uin: &str) -> Option<String> {
-    // 攻击
-    let cmd = format!("cmd=factionarmy&op=fightWithUsr&point_id={point_id}&opp_uin={opp_uin}");
-    let data: Response = match d.get(&cmd).await {
-        Ok(v) => v,
-        Err(e) => {
-            d.log(TASK, &format!("{e}"));
-            return None;
-        }
-    };
-
-    d.log(TASK, &data.msg);
-    Some(data.msg)
 }
 
 #[cfg(test)]
