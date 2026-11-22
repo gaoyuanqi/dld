@@ -1,5 +1,6 @@
 mod bang_pai_ji_tan;
 mod bang_pai_shang_hui;
+mod bang_pai_yuan_zheng_jun;
 mod bei_bao;
 mod biao_xing_tian_xia;
 mod cai_dan_shuang;
@@ -79,7 +80,6 @@ mod xing_yun_jin_dan;
 mod xing_yun_zhuan_pan;
 mod xu_yuan;
 mod yuan_wu_deng_gao;
-mod yuan_zheng;
 mod zhi_ye_tiao_zhan;
 mod zhong_qiu_li_he;
 mod zhou_zhou_li_bao;
@@ -157,7 +157,7 @@ tasks! {
     龙凰之境 => long_huang_zhi_jing,
     我的帮派 => wo_de_bang_pai,
     门派邀请赛 => men_pai_yao_qing_sai,
-    帮派远征军 => yuan_zheng,
+    帮派远征军 => bang_pai_yuan_zheng_jun,
     飞升大作战 => fei_sheng,
     今日活跃度 => jin_ri_huo_yue_du,
     帮派黄金联赛 => lian_sai,
