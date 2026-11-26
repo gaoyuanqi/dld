@@ -254,7 +254,7 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
-    /// 八卦、挑战、领奖、兑换
+    /// 八卦、挑战、领奖、兑换探宝区
     时空遗迹 {
         #[command(flatten)]
         qq: QqArg,

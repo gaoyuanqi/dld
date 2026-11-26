@@ -10,7 +10,7 @@
 //!
 //! 赛季奖励：休赛期领取
 //!
-//! 遗迹商店：休赛期兑换，按特惠区、售卖区顺序直接兑换，每件商品尽量买满
+//! 遗迹商店：休赛期兑换，按探宝区特惠、常规顺序直接兑换日月星舆，每件商品尽量买满
 //!
 //! 休赛期第八周指上周四早 6 点到本周四早 6 点
 
@@ -385,7 +385,6 @@ struct Shop {
     msg: String,
     score: String, // 总积分
     shopinfo1: Vec<ShopInfo>,
-    shopinfo2: Vec<ShopInfo>,
 }
 
 #[derive(Deserialize)]
@@ -423,14 +422,8 @@ async fn 遗迹商店(d: &DaLeDou) {
         return;
     }
 
-    // 兑换特惠区
+    // 兑换探宝区
     兑换区(d, &mut score, &data.shopinfo1).await;
-    if score < 200 {
-        return;
-    }
-
-    // 兑换售卖区
-    兑换区(d, &mut score, &data.shopinfo2).await;
 }
 
 /// 按顺序尽量兑换一区商品，积分低于 200 保底时停止本区
