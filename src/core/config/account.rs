@@ -386,6 +386,8 @@ pub struct WenDingTianXia {
     pub 攻占区域: Region,
     /// 付费两次
     pub 付费攻占: bool,
+    /// 是否每天兑换碎片
+    pub 兑换碎片: bool,
 }
 
 /// 攻占区域
@@ -1197,6 +1199,7 @@ mod tests {
         assert!(!config.竞技场.兑换河图洛书);
         assert_eq!(config.梦想之旅.最多消耗梦幻机票数量, 3);
         assert!(!config.侠士客栈.黑市商人.ex_1006);
+        assert!(!config.问鼎天下.兑换碎片);
         assert_eq!(config.历练.乐斗顺序.len(), 9);
         assert_eq!(config.历练.乐斗顺序[0], LiLianBoss::XiongShi);
         assert_eq!(config.历练.乐斗顺序[8], LiLianBoss::XiangXian);
@@ -1241,6 +1244,20 @@ mod tests {
     fn test_account_config_load_empty_sub_object_fills_defaults() {
         let config = load_account(r#"{"竞技场": {}}"#).unwrap();
         assert!(!config.竞技场.兑换河图洛书);
+    }
+
+    // 问鼎天下兑换碎片开关读取
+    #[test]
+    fn test_account_config_load_wen_ding_tian_xia_exchange() {
+        let config = load_account(r#"{"问鼎天下": {"兑换碎片": true}}"#).unwrap();
+        assert!(config.问鼎天下.兑换碎片);
+        // 缺失时用默认值补齐
+        assert!(
+            !load_account(r#"{"问鼎天下": {}}"#)
+                .unwrap()
+                .问鼎天下
+                .兑换碎片
+        );
     }
 
     // 梦想之旅机票数超上限报错

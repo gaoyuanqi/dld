@@ -219,7 +219,7 @@ enum Command {
         #[command(flatten)]
         qq: QqArg,
     },
-    /// 领奖、助威、攻占
+    /// 领奖、攻占、助威、古阵篇碎片兑换
     问鼎天下 {
         #[command(flatten)]
         qq: QqArg,
