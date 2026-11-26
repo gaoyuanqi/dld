@@ -73,7 +73,7 @@ pub struct DuiHuanMa {
 impl Default for DuiHuanMa {
     fn default() -> Self {
         Self {
-            code: "686866".to_string(),
+            code: "111201".to_string(),
         }
     }
 }
@@ -221,7 +221,7 @@ mod tests {
         for config in [GlobalConfig::default(), load_global(r#"{}"#).unwrap()] {
             assert_eq!(config.运行时.并发数, 5);
             assert_eq!(config.运行时.日志保留天数, 30);
-            assert_eq!(config.兑换码.code, "686866");
+            assert_eq!(config.兑换码.code, "111201");
             assert_eq!(config.时空遗迹.八卦迷阵.第一层, BaGua::震);
             assert_eq!(config.时空遗迹.八卦迷阵.ids(), [7, 8, 2, 1]);
         }
