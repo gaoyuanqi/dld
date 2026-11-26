@@ -197,7 +197,7 @@ mod tests {
     #[test]
     fn test_load_empty_sub_object_fills_defaults() {
         let config = load_global(r#"{"兑换码": {}}"#).unwrap();
-        assert_eq!(config.兑换码.code, "111201");
+        assert_eq!(config.兑换码.code, DuiHuanMa::default().code);
     }
 
     // 已有合法配置文件，读取后保留用户值
@@ -214,7 +214,7 @@ mod tests {
         let path = config_path(&dir);
         assert!(!path.exists());
         let config = GlobalConfig::load(&path).unwrap();
-        assert_eq!(config.兑换码.code, "111201");
+        assert_eq!(config.兑换码.code, DuiHuanMa::default().code);
         // load 应自动创建文件
         assert!(path.exists());
     }
@@ -239,7 +239,7 @@ mod tests {
         let path = config_path(&dir);
         let diff = GlobalConfig::update(&path).unwrap();
         let content = read_file(&path);
-        assert!(content.contains("111201"));
+        assert!(content.contains(DuiHuanMa::default().code.as_str()));
         assert!(content.contains(r#""第一层""#));
         // 空对象 → 所有字段都是新增
         assert!(!diff.added.is_empty());
@@ -292,7 +292,7 @@ mod tests {
         fs::write(&path, json).unwrap();
         let diff = GlobalConfig::update(&path).unwrap();
         let content = read_file(&path);
-        assert!(content.contains("111201"));
+        assert!(content.contains(DuiHuanMa::default().code.as_str()));
         assert!(!diff.added.is_empty());
         assert!(diff.removed.is_empty());
     }
@@ -303,12 +303,12 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = config_path(&dir);
         // 包含一个不存在的旧字段
-        let json = r#"{"兑换码": {"code": "111201"}, "废弃项": {"x": "y"}}"#;
+        let json = r#"{"兑换码": {"code": "888888"}, "废弃项": {"x": "y"}}"#;
         fs::write(&path, json).unwrap();
         let diff = GlobalConfig::update(&path).unwrap();
         let content = read_file(&path);
         assert!(!content.contains("废弃项"));
-        assert!(content.contains("111201"));
+        assert!(content.contains("888888"));
         // diff 报告应包含移除的废弃字段
         assert!(diff.removed.iter().any(|r| r.starts_with("废弃项")));
     }
@@ -321,7 +321,7 @@ mod tests {
         fs::write(&path, "{}").unwrap();
         GlobalConfig::update(&path).unwrap();
         let content = read_file(&path);
-        assert!(content.contains("111201"));
+        assert!(content.contains(DuiHuanMa::default().code.as_str()));
         assert!(content.contains(r#""第一层""#));
     }
 
