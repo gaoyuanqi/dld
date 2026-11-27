@@ -60,7 +60,7 @@ Q宠大乐斗个人版代玩辅助
 1. 定义配置结构体，派生 `Debug, Default, Deserialize, Serialize`，加 `#[serde(default)]`
 2. 子结构体挂到 `GlobalConfig` 或 `AccountConfig` 下即可；新增顶层配置类型才需要 `impl UpdatableConfig` 并实现 `section_title()`（目前仅全局/账号两种，几乎不会新增）。任务配置放 `src/core/config/<任务拼音>.rs`，并在 `config.rs` 的 `mod` 与 `pub use` 两处登记（漏一处会编译失败）
 3. 需要字段取值范围校验时 override `validate()`，范围校验用 `validate_range!` 宏，其余用 `bail!()`
-4. 子结构体的 `validate()` 不会自动被调，需在父结构体的 `validate()` 里手动 `self.xxx.validate()?;`
+4. 子结构体的 `validate()` 不会自动被调，需在父结构体的 `validate()` 里手动 `self.xxx.validate()?;`。漏挂不会编译失败（静默不校验），需靠 `config.rs` 的 `test_account_config_load_validate_all_hooked` 整合测试锁定：每加一个带校验的账号配置，同步补一条用例
 5. `load`/`update`/`create_default` 由 trait 默认实现提供
 6. `dld 同步配置` 同时更新全局配置和所有已登记账号的配置；注意字典（map）字段不做键级合并，避免用字典存需增长的集合
 
