@@ -1,4 +1,4 @@
-//! 问鼎天下账号配置：攻占区域、付费攻占、碎片兑换开关
+//! 问鼎天下
 
 use serde::{Deserialize, Serialize};
 

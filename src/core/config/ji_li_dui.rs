@@ -1,4 +1,4 @@
-//! 吉利兑账号配置：兑换优先级列表
+//! 吉利兑
 
 use std::collections::HashSet;
 

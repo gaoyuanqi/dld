@@ -1,4 +1,4 @@
-//! 侠士客栈账号配置：黑市商人奇遇交换开关
+//! 侠士客栈
 
 use serde::{Deserialize, Serialize};
 

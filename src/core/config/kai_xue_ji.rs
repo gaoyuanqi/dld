@@ -1,4 +1,4 @@
-//! 开学季账号配置：疯狂许愿奖励选择
+//! 开学季
 
 use serde::{Deserialize, Serialize};
 

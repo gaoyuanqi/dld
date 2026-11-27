@@ -1,4 +1,4 @@
-//! 我的帮派账号配置：报名开关与供奉物品
+//! 我的帮派
 
 use std::collections::HashSet;
 

@@ -1,4 +1,4 @@
-//! 会武账号配置：助威后兑换真黄金卷轴数量
+//! 会武
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};

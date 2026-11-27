@@ -1,4 +1,4 @@
-//! 深渊之潮账号配置：深渊秘境挑战副本与兑换开关
+//! 深渊之潮
 
 use serde::{Deserialize, Serialize};
 

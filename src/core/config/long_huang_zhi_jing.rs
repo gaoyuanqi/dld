@@ -1,4 +1,4 @@
-//! 龙凰之境账号配置：兑换上限
+//! 龙凰之境
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};

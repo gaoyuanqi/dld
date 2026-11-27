@@ -1,4 +1,4 @@
-//! 竞技场账号配置：赛季期河图洛书兑换开关
+//! 竞技场
 
 use serde::{Deserialize, Serialize};
 

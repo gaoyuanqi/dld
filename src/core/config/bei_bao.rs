@@ -1,4 +1,4 @@
-//! 背包账号配置：自动使用的物品列表
+//! 背包
 
 use std::collections::HashSet;
 

@@ -1,4 +1,4 @@
-//! 登录商店账号配置：兑换材料选择
+//! 登录商店
 
 use serde::{Deserialize, Serialize};
 

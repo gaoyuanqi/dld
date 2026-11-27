@@ -1,4 +1,4 @@
-//! 矿洞账号配置：副本层数与模式
+//! 矿洞
 
 use serde::{Deserialize, Serialize};
 

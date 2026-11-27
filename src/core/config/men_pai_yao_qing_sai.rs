@@ -1,4 +1,4 @@
-//! 门派邀请赛账号配置：兑换上限
+//! 门派邀请赛
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};

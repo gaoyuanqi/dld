@@ -1,4 +1,4 @@
-//! 历练账号配置：BOSS 乐斗顺序
+//! 历练
 
 use std::collections::HashSet;
 

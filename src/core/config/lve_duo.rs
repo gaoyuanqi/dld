@@ -1,4 +1,4 @@
-//! 掠夺账号配置：筛选对手战力门槛与递增步长
+//! 掠夺
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};

@@ -1,4 +1,4 @@
-//! 门派账号配置：万年寺与八叶堂的付费选项
+//! 门派
 
 use serde::{Deserialize, Serialize};
 

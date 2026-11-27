@@ -1,4 +1,4 @@
-//! 帮派商会账号配置：交易会所物品与兑换商店清单
+//! 帮派商会
 
 use std::collections::HashSet;
 

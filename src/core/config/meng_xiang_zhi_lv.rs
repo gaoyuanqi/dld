@@ -1,4 +1,4 @@
-//! 梦想之旅账号配置：周四梦幻机票消耗上限
+//! 梦想之旅
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};

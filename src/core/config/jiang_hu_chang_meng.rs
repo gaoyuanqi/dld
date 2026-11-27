@@ -1,4 +1,4 @@
-//! 江湖长梦账号配置：副本执行次数与兑换上限
+//! 江湖长梦
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};

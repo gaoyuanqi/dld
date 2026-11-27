@@ -1,4 +1,4 @@
-//! 时空遗迹账号配置：异兽洞窟 BOSS 上限
+//! 时空遗迹
 
 use serde::{Deserialize, Serialize};
 
