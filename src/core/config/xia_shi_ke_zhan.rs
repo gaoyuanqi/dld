@@ -53,6 +53,7 @@ impl HeiShiShangRen {
 mod tests {
     use super::*;
 
+    // 已登记 advId 按开关返回
     #[test]
     fn test_is_enabled_known_adv_ids() {
         let kezhan = XiaShiKeZhan {
@@ -73,6 +74,7 @@ mod tests {
         assert!(kezhan.is_enabled("1014"));
     }
 
+    // 未登记 advId 一律不交换
     #[test]
     fn test_is_enabled_unknown_adv_id() {
         let kezhan = XiaShiKeZhan::default();

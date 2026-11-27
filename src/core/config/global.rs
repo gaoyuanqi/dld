@@ -278,6 +278,7 @@ mod tests {
 
     // ─── BaGua::from_char 测试 ───
 
+    // 全部合法卦象字符解析成功
     #[test]
     fn test_bagua_from_char_all_valid() {
         let chars = ['离', '坤', '兑', '乾', '坎', '艮', '震', '巽'];
@@ -287,6 +288,7 @@ mod tests {
         assert_eq!(chars.len(), 8);
     }
 
+    // 非法字符解析失败
     #[test]
     fn test_bagua_from_char_invalid() {
         assert!(BaGua::from_char('a').is_none());
@@ -297,6 +299,7 @@ mod tests {
 
     // ─── BaGuaMiZhen::chars_to_ids 测试 ───
 
+    // 合法方向序列转接口 id
     #[test]
     fn test_chars_to_ids_valid() {
         let bagua = BaGuaMiZhen::default();
@@ -321,6 +324,7 @@ mod tests {
 
     // ─── BaGuaMiZhen::validate 测试 ───
 
+    // 默认四层皆不同，校验通过
     #[test]
     fn test_bagua_mizhen_validate_all_different() {
         let bagua = BaGuaMiZhen::default();
@@ -328,6 +332,7 @@ mod tests {
         assert!(bagua.validate().is_ok());
     }
 
+    // 层数重复校验失败
     #[test]
     fn test_bagua_mizhen_validate_duplicate() {
         let bagua = BaGuaMiZhen {
@@ -339,12 +344,14 @@ mod tests {
         assert!(bagua.validate().is_err());
     }
 
+    // 重复配置走 load 链路报错
     #[test]
     fn test_bagua_mizhen_validate_duplicate_via_load() {
         let json = r#"{"时空遗迹": {"八卦迷阵": {"第一层": "震", "第二层": "震", "第三层": "坤", "第四层": "离"}}}"#;
         assert!(load_global(json).is_err());
     }
 
+    // 重复配置走 update 链路报错
     #[test]
     fn test_bagua_mizhen_validate_duplicate_via_update() {
         let dir = tempfile::tempdir().unwrap();

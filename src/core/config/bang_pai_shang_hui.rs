@@ -209,12 +209,14 @@ mod tests {
         }
     }
 
+    // items 覆盖全部 30 种交易物品
     #[test]
     fn test_is_match_items_count() {
         let huisuo = JiaoYiHuiSuo::default();
         assert_eq!(huisuo.items().len(), 30);
     }
 
+    // 开启的物品全部能匹配
     #[test]
     fn test_is_match_all_enabled() {
         let huisuo = all_items(true);
@@ -225,6 +227,7 @@ mod tests {
         }
     }
 
+    // 默认关闭的物品全部不匹配
     #[test]
     fn test_is_match_all_disabled() {
         let huisuo = JiaoYiHuiSuo::default();
@@ -234,10 +237,10 @@ mod tests {
         }
     }
 
+    // 数量不符不匹配：*20 的用 *2 测，*5 的用 *50 测
     #[test]
     fn test_is_match_quantity_mismatch() {
         let huisuo = all_items(true);
-        // 数量不对时不应匹配：*20 的用 *2 测，*5 的用 *50 测
         assert!(!huisuo.is_match("教主想要还魂丹*2，他将返回给你200商会银币"));
         assert!(!huisuo.is_match("教主想要大体力*50，他将返回给你200商会银币"));
         assert!(!huisuo.is_match("教主想要经验木简*1，他将返回给你200商会银币"));
@@ -247,18 +250,21 @@ mod tests {
 
     // ─── DuiHuanShangDian 测试 ───
 
+    // 默认兑换物品为泯灭·黑炎V碎片
     #[test]
     fn test_dui_huan_shang_dian_default() {
         let d = DuiHuanShangDian::default();
         assert_eq!(d.0, vec!["泯灭·黑炎V碎片"]);
     }
 
+    // 物品数量超上限拒绝
     #[test]
     fn test_dui_huan_shang_dian_too_many() {
         let d = DuiHuanShangDian((0..11).map(|i| format!("物品{i}")).collect());
         assert!(d.validate().is_err());
     }
 
+    // 物品重复拒绝
     #[test]
     fn test_dui_huan_shang_dian_duplicate() {
         let d = DuiHuanShangDian(vec![
@@ -269,6 +275,7 @@ mod tests {
         assert!(d.validate().is_err());
     }
 
+    // 合法列表通过
     #[test]
     fn test_dui_huan_shang_dian_valid() {
         let d = DuiHuanShangDian(vec!["物品1".to_string(), "物品2".to_string()]);
@@ -296,6 +303,7 @@ mod tests {
         assert!(d.validate().is_ok());
     }
 
+    // 按物品名判断是否兑换
     #[test]
     fn test_should_exchange() {
         let d = DuiHuanShangDian(vec!["a".to_string(), "b".to_string()]);

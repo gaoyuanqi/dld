@@ -90,9 +90,9 @@ impl FengKuangXuYuan {
 mod tests {
     use super::*;
 
+    // item_name 与 serde rename 须保持一致，序列化值作为对照
     #[test]
     fn test_item_name() {
-        // item_name 与 serde rename 须保持一致，序列化值作为对照
         let variants = [
             FengKuangXuYuan::神兵,
             FengKuangXuYuan::神铠,
