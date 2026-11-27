@@ -20,10 +20,50 @@ macro_rules! validate_range {
 }
 
 mod account;
+mod bang_pai_shang_hui;
+mod bei_bao;
+mod deng_lu_shang_dian;
 mod global;
+mod hui_wu;
+mod ji_li_dui;
+mod jiang_hu_chang_meng;
+mod jing_ji_chang;
+mod kai_xue_ji;
+mod kuang_dong;
+mod li_lian;
+mod long_huang_zhi_jing;
+mod lve_duo;
+mod men_pai;
+mod men_pai_yao_qing_sai;
+mod meng_xiang_zhi_lv;
+mod shen_yuan_zhi_chao;
+mod shi_kong_yi_ji;
+mod wen_ding_tian_xia;
+mod wo_de_bang_pai;
+mod xia_shi_ke_zhan;
 
 pub use account::*;
+pub use bang_pai_shang_hui::*;
+pub use bei_bao::*;
+pub use deng_lu_shang_dian::*;
 pub use global::*;
+pub use hui_wu::*;
+pub use ji_li_dui::*;
+pub use jiang_hu_chang_meng::*;
+pub use jing_ji_chang::*;
+pub use kai_xue_ji::*;
+pub use kuang_dong::*;
+pub use li_lian::*;
+pub use long_huang_zhi_jing::*;
+pub use lve_duo::*;
+pub use men_pai::*;
+pub use men_pai_yao_qing_sai::*;
+pub use meng_xiang_zhi_lv::*;
+pub use shen_yuan_zhi_chao::*;
+pub use shi_kong_yi_ji::*;
+pub use wen_ding_tian_xia::*;
+pub use wo_de_bang_pai::*;
+pub use xia_shi_ke_zhan::*;
 
 use std::collections::HashSet;
 use std::fs;
