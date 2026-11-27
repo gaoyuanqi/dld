@@ -267,8 +267,7 @@ mod tests {
         fs::read_to_string(path).unwrap()
     }
 
-    // ─── UpdatableConfig load/update 流程测试（以 GlobalConfig 为载体）───
-
+    // 全局配置路径
     fn config_path(dir: &tempfile::TempDir) -> std::path::PathBuf {
         dir.path().join("global_config.json")
     }
@@ -280,6 +279,21 @@ mod tests {
         fs::write(&path, json).unwrap();
         GlobalConfig::load(&path)
     }
+
+    // 账号配置路径
+    fn account_path(dir: &tempfile::TempDir) -> std::path::PathBuf {
+        dir.path().join("config.json")
+    }
+
+    // 写入 JSON 后加载账号配置
+    fn load_account(json: &str) -> Result<AccountConfig> {
+        let dir = tempfile::tempdir().unwrap();
+        let path = account_path(&dir);
+        fs::write(&path, json).unwrap();
+        AccountConfig::load(&path)
+    }
+
+    // ─── UpdatableConfig load/update 流程测试（以 GlobalConfig 为载体）───
 
     // 子对象存在但内部为空，用默认值补齐
     #[test]
@@ -438,19 +452,6 @@ mod tests {
     }
 
     // ─── AccountConfig load/update 整合测试 ───
-
-    // 账号配置路径
-    fn account_path(dir: &tempfile::TempDir) -> std::path::PathBuf {
-        dir.path().join("config.json")
-    }
-
-    // 写入 JSON 后加载账号配置
-    fn load_account(json: &str) -> Result<AccountConfig> {
-        let dir = tempfile::tempdir().unwrap();
-        let path = account_path(&dir);
-        fs::write(&path, json).unwrap();
-        AccountConfig::load(&path)
-    }
 
     // 默认值正确
     #[test]
