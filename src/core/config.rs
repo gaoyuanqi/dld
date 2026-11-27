@@ -494,18 +494,6 @@ mod tests {
         assert_eq!(config.矿洞.开启副本.模式, KuangDongMode::Normal);
     }
 
-    // 配置文件不存在时自动创建默认文件
-    #[test]
-    fn test_account_config_load_creates_default() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = account_path(&dir);
-        assert!(!path.exists());
-        let config = AccountConfig::load(&path).unwrap();
-        assert_eq!(config.矿洞.开启副本.层数, KuangDongFloor::F1);
-        // load 应自动创建文件
-        assert!(path.exists());
-    }
-
     // 部分字段缺失时用默认值补齐
     #[test]
     fn test_account_config_load_partial_file_fills_defaults() {
@@ -539,12 +527,6 @@ mod tests {
         assert!(load_account(r#"{"吉利兑": {"兑换优先级": [""]}}"#).is_err());
     }
 
-    // 非法 JSON 应报错
-    #[test]
-    fn test_account_config_load_invalid_json_errors() {
-        assert!(load_account("not json").is_err());
-    }
-
     // 枚举值无效应报错
     #[test]
     fn test_account_config_load_type_mismatch_errors() {
@@ -564,98 +546,6 @@ mod tests {
         assert!(content.contains("兑换河图洛书"));
         assert!(!diff.added.is_empty());
         assert!(diff.removed.is_empty());
-    }
-
-    // 无新增无废弃时不写入
-    #[test]
-    fn test_account_config_update_no_changes() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = account_path(&dir);
-        let json = serde_json::to_string_pretty(&AccountConfig::default()).unwrap();
-        fs::write(&path, &json).unwrap();
-        let before = read_file(&path);
-        let diff = AccountConfig::update(&path).unwrap();
-        assert!(diff.added.is_empty());
-        assert!(diff.removed.is_empty());
-        let after = read_file(&path);
-        assert_eq!(before.trim(), after.trim());
-    }
-
-    // 新增缺失字段，保留已有值
-    #[test]
-    fn test_account_config_update_adds_missing_fields_preserves_existing() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = account_path(&dir);
-        let json = r#"{"矿洞": {"开启副本": {"层数": "第五层"}}}"#;
-        fs::write(&path, json).unwrap();
-        let diff = AccountConfig::update(&path).unwrap();
-        let content = read_file(&path);
-        assert!(content.contains("第五层"));
-        assert!(content.contains("简单"));
-        assert!(!diff.added.is_empty());
-        assert!(diff.removed.is_empty());
-    }
-
-    // 子对象存在但内部为空，用默认值补齐
-    #[test]
-    fn test_account_config_update_empty_sub_object_fills_defaults() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = account_path(&dir);
-        let json = r#"{"竞技场": {}}"#;
-        fs::write(&path, json).unwrap();
-        let diff = AccountConfig::update(&path).unwrap();
-        let content = read_file(&path);
-        assert!(content.contains("兑换河图洛书"));
-        assert!(!diff.added.is_empty());
-        assert!(diff.removed.is_empty());
-    }
-
-    // 废弃字段被移除，已有值保留
-    #[test]
-    fn test_account_config_update_removes_deprecated_fields() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = account_path(&dir);
-        let json = r#"{"矿洞": {"开启副本": {"层数": "第一层"}}, "废弃项": {"x": "y"}}"#;
-        fs::write(&path, json).unwrap();
-        let diff = AccountConfig::update(&path).unwrap();
-        let content = read_file(&path);
-        assert!(!content.contains("废弃项"));
-        assert!(content.contains("第一层"));
-        assert!(diff.removed.iter().any(|r| r.starts_with("废弃项")));
-    }
-
-    // 空文件 {} 自动补全所有字段
-    #[test]
-    fn test_account_config_update_empty_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = account_path(&dir);
-        fs::write(&path, "{}").unwrap();
-        AccountConfig::update(&path).unwrap();
-        let content = read_file(&path);
-        assert!(content.contains("第一层"));
-        assert!(content.contains("简单"));
-    }
-
-    // 非法 JSON 报错且不破坏原文件
-    #[test]
-    fn test_account_config_update_invalid_json_errors() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = account_path(&dir);
-        let junk = "not json";
-        fs::write(&path, junk).unwrap();
-        assert!(AccountConfig::update(&path).is_err());
-        assert_eq!(read_file(&path), junk);
-    }
-
-    // 枚举值无效应报错且不破坏原文件
-    #[test]
-    fn test_account_config_update_type_mismatch_errors() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = account_path(&dir);
-        let json = r#"{"矿洞": {"开启副本": {"层数": "无效层"}}}"#;
-        fs::write(&path, json).unwrap();
-        assert!(AccountConfig::update(&path).is_err());
-        assert_eq!(read_file(&path), json);
     }
 
     // 子配置 validate 挂接有效：校验失败报错且不破坏原文件

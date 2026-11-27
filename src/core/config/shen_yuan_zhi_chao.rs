@@ -74,4 +74,37 @@ mod tests {
         assert_eq!(ShenYuanMiJingCopy::渊秘祭坛.api_id(), "7");
         assert_eq!(ShenYuanMiJingCopy::古帝遗迹.api_id(), "8");
     }
+
+    // serde rename 与变体名一致，序列化值作为对照
+    #[test]
+    fn test_rename() {
+        let variants = [
+            ShenYuanMiJingCopy::崎岖斗界,
+            ShenYuanMiJingCopy::魂渡桥,
+            ShenYuanMiJingCopy::须臾之河,
+            ShenYuanMiJingCopy::曲镜空洞,
+            ShenYuanMiJingCopy::光影迷界,
+            ShenYuanMiJingCopy::吞厄源头,
+            ShenYuanMiJingCopy::渊秘祭坛,
+            ShenYuanMiJingCopy::古帝遗迹,
+        ];
+        let names = [
+            "崎岖斗界",
+            "魂渡桥",
+            "须臾之河",
+            "曲镜空洞",
+            "光影迷界",
+            "吞厄源头",
+            "渊秘祭坛",
+            "古帝遗迹",
+        ];
+        for (v, name) in variants.iter().zip(names.iter()) {
+            let got = serde_json::to_value(v)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string();
+            assert_eq!(&got, name);
+        }
+    }
 }
