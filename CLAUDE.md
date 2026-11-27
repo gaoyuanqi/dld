@@ -49,7 +49,7 @@ Q宠大乐斗个人版代玩辅助
 ### 全局配置 vs 账号配置
 
 - **全局配置**：`<data_dir>/global_config.json`，所有账号共享（如兑换码、八卦迷阵方向），代码在 `src/core/config/global.rs`
-- **账号配置**：`<data_dir>/config/<qq>.json`，每 QQ 独享（如矿洞楼层、模式），代码在 `src/core/config/account.rs`
+- **账号配置**：`<data_dir>/config/<qq>.json`，每 QQ 独享（如矿洞楼层、模式），配置根在 `src/core/config.rs`，各任务配置在 `src/core/config/<任务拼音>.rs`（与 `dw/tasks` 同名对应）
 - 入口 `config.rs` 通过 `pub use` 重导出，外部路径保持 `crate::core::config::Xxx` 不变
 - `validate_range!` 宏定义在 `config.rs` 顶部，必须位于子模块声明之前（宏文本作用域），不得移到文件后半
 
@@ -58,7 +58,7 @@ Q宠大乐斗个人版代玩辅助
 先判断是否该进配置：用户可调的旋钮才进配置，题库/查表类数据（诗句、对联等）放代码常量
 
 1. 定义配置结构体，派生 `Debug, Default, Deserialize, Serialize`，加 `#[serde(default)]`
-2. 子结构体挂到 `GlobalConfig` 或 `AccountConfig` 下即可；新增顶层配置类型才需要 `impl UpdatableConfig` 并实现 `section_title()`（目前仅全局/账号两种，几乎不会新增）
+2. 子结构体挂到 `GlobalConfig` 或 `AccountConfig` 下即可；新增顶层配置类型才需要 `impl UpdatableConfig` 并实现 `section_title()`（目前仅全局/账号两种，几乎不会新增）。任务配置放 `src/core/config/<任务拼音>.rs`，并在 `config.rs` 的 `mod` 与 `pub use` 两处登记（漏一处会编译失败）
 3. 需要字段取值范围校验时 override `validate()`，范围校验用 `validate_range!` 宏，其余用 `bail!()`
 4. 子结构体的 `validate()` 不会自动被调，需在父结构体的 `validate()` 里手动 `self.xxx.validate()?;`
 5. `load`/`update`/`create_default` 由 trait 默认实现提供
